@@ -1,6 +1,5 @@
 import { executeQuery } from "../../config/db.js";
 
-// GET - Obtener todos los departamentos
 export async function getDepartamentos(req, res) {
   try {
     const sql = `
@@ -25,7 +24,6 @@ export async function getDepartamentos(req, res) {
   }
 }
 
-// GET BY ID
 export async function getDepartamentoById(req, res) {
   try {
     const { id } = req.params;
@@ -45,9 +43,7 @@ export async function getDepartamentoById(req, res) {
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "Departamento no encontrado"
-      });
+      return res.status(404).json({ message: "Departamento no encontrado" });
     }
 
     res.json(result.rows[0]);
@@ -59,7 +55,6 @@ export async function getDepartamentoById(req, res) {
   }
 }
 
-// CREATE
 export async function createDepartamento(req, res) {
   try {
     const {
@@ -74,13 +69,15 @@ export async function createDepartamento(req, res) {
         DEP_NOMBRE,
         DEP_DESCRIPCION,
         DEP_ESTADO,
-        DEP_FECHA_CREACION
+        DEP_FECHA_CREACION,
+        DEP_MODIFICACION
       )
       VALUES (
         NOM_DEPARTAMENTO_SEQ.NEXTVAL,
         :dep_nombre,
         :dep_descripcion,
         :dep_estado,
+        SYSDATE,
         SYSDATE
       )
     `;
@@ -91,9 +88,7 @@ export async function createDepartamento(req, res) {
       dep_estado
     });
 
-    res.status(201).json({
-      message: "Departamento creado correctamente"
-    });
+    res.status(201).json({ message: "Departamento creado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error creando departamento",
@@ -102,7 +97,6 @@ export async function createDepartamento(req, res) {
   }
 }
 
-// UPDATE
 export async function updateDepartamento(req, res) {
   try {
     const { id } = req.params;
@@ -130,14 +124,10 @@ export async function updateDepartamento(req, res) {
     });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "Departamento no encontrado"
-      });
+      return res.status(404).json({ message: "Departamento no encontrado" });
     }
 
-    res.json({
-      message: "Departamento actualizado correctamente"
-    });
+    res.json({ message: "Departamento actualizado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error actualizando departamento",
@@ -146,7 +136,6 @@ export async function updateDepartamento(req, res) {
   }
 }
 
-// DELETE (físico)
 export async function deleteDepartamento(req, res) {
   try {
     const { id } = req.params;
@@ -159,14 +148,10 @@ export async function deleteDepartamento(req, res) {
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "Departamento no encontrado"
-      });
+      return res.status(404).json({ message: "Departamento no encontrado" });
     }
 
-    res.json({
-      message: "Departamento eliminado correctamente"
-    });
+    res.json({ message: "Departamento eliminado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error eliminando departamento",
