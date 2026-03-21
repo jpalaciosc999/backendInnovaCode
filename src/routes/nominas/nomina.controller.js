@@ -101,6 +101,58 @@ export async function createNomina(req, res) {
 }
 
 /* =======================
+   ACTUALIZAR NOMINA
+======================= */
+export async function updateNomina(req, res) {
+  try {
+    const { id } = req.params;
+    const {
+      total_ingresos,
+      total_descuento,
+      salario_liquido,
+      per_id,
+      emp_id,
+      estado
+    } = req.body;
+
+    const sql = `
+      UPDATE NOM_NOMINA
+      SET
+        NOM_TOTAL_INGRESOS = :total_ingresos,
+        NOM_TOTAL_DESCUENTO = :total_descuento,
+        NOM_SALARIO_LIQUIDO = :salario_liquido,
+        PER_ID = :per_id,
+        EMP_ID = :emp_id,
+        NOM_ESTADO = :estado
+      WHERE NOM_ID = :id
+    `;
+
+    const result = await executeQuery(sql, {
+      id: Number(id),
+      total_ingresos,
+      total_descuento,
+      salario_liquido,
+      per_id,
+      emp_id,
+      estado
+    });
+
+    if (result.rowsAffected === 0) {
+      return res.status(404).json({
+        message: "Nomina no encontrada"
+      });
+    }
+
+    res.json({ message: "Nomina actualizada correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error actualizando nomina",
+      error: error.message
+    });
+  }
+}
+
+/* =======================
    ELIMINAR
 ======================= */
 export async function deleteNomina(req, res) {
