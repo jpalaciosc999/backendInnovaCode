@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+
 import clientesRoutes from "./routes/clientes/clientes.routes.js";
 import permisosRoutes from "./routes/permisos/permisos.routes.js";
 import rolesRoutes from "./routes/roles/roles.routes.js";
@@ -17,6 +18,14 @@ import prestamoRoutes from "./routes/prestamo/prestamo.routes.js";
 import prestamoDetalleRoutes from "./routes/prestamo_detalle/prestamo_detalle.routes.js";
 import periodoRoutes from "./routes/periodo/periodo.routes.js";
 import liquidacionRoutes from "./routes/liquidacion/liquidacion.routes.js";
+import sedesRoutes from "./routes/sedes/sedes.routes.js";
+import empleadosRoutes from "./routes/empleados/empleados.routes.js";
+import cuentasRoutes from "./routes/cuentas/cuentas.routes.js";
+import controlRoutes from "./routes/control/control.routes.js";
+import bitacorasRoutes from "./routes/bitacoras/bitacoras.routes.js";
+import usuarioBitacoraRoutes from "./routes/usuarioBitacora/usuarioBitacora.routes.js";
+import tipoContratoRoutes from "./routes/tipoContrato/tipoContrato.routes.js";
+import empleadoContratoRoutes from "./routes/empleadoContrato/empleadoContrato.routes.js";
 
 const app = express();
 
@@ -49,5 +58,13 @@ app.use("/prestamo", prestamoRoutes);
 app.use("/prestamoDetalle", prestamoDetalleRoutes);
 app.use("/periodo", periodoRoutes);
 app.use("/liquidacion", liquidacionRoutes);
+app.use("/sedes", sedesRoutes);
+app.use("/empleados", empleadosRoutes);
+app.use("/cuentas", cuentasRoutes);
+app.use("/control", controlRoutes);
+app.use("/bitacoras", bitacorasRoutes);
+app.use("/usuarioBitacora", usuarioBitacoraRoutes);
+app.use("/tipoContrato", tipoContratoRoutes);
+app.use("/empleadoContrato", empleadoContratoRoutes);
 
 export default app;
