@@ -5,7 +5,7 @@ import {
   createLiquidacion,
   updateLiquidacion,
   deleteLiquidacion
-} from "../controllers/liquidacion.controller.js";
+} from "./liquidacion.controller.js";
 
 const router = express.Router();
 

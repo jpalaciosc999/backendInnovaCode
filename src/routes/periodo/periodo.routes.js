@@ -5,7 +5,7 @@ import {
   createPeriodo,
   updatePeriodo,
   deletePeriodo
-} from "../controllers/periodo.controller.js";
+} from "./periodo.controller.js";
 
 const router = express.Router();
 

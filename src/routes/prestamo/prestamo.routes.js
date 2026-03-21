@@ -5,7 +5,7 @@ import {
   createPrestamo,
   updatePrestamo,
   deletePrestamo
-} from "../controllers/prestamo.controller.js";
+} from "./prestamo.controller.js";
 
 const router = express.Router();
 

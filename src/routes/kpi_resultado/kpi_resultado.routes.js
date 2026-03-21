@@ -5,7 +5,7 @@ import {
   createKpiResultado,
   updateKpiResultado,
   deleteKpiResultado
-} from "../controllers/kpiResultado.controller.js";
+} from "./kpiResultado.controller.js";
 
 const router = express.Router();
 

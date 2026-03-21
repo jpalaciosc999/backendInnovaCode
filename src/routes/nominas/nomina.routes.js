@@ -5,7 +5,7 @@ import {
   createNomina,
   updateNomina,
   deleteNomina
-} from "../controllers/nomina.controller.js";
+} from "./nomina.controller.js";
 
 const router = express.Router();
 
