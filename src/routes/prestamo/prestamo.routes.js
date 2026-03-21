@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 import {
   getPrestamos,
   getPrestamoById,
@@ -7,7 +7,7 @@ import {
   deletePrestamo
 } from "./prestamo.controller.js";
 
-const router = express.Router();
+const router = Router();
 
 router.get("/", getPrestamos);
 router.get("/:id", getPrestamoById);
