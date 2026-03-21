@@ -1,11 +1,19 @@
 import { executeQuery } from "../../config/db.js";
 
-/* =======================
-   OBTENER DETALLES
-======================= */
 export async function getPrestamoDetalles(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_PRESTAMO_DETALLE`;
+    const sql = `
+      SELECT
+        PDE_ID,
+        PDE_NUMERO_CUOTA,
+        PDE_FECHA_PAGO,
+        PDE_MONTO,
+        PDE_SALDO_RESTANTE,
+        PDE_ESTADO,
+        PRE_ID
+      FROM NOM_PRESTAMO_DETALLE
+      ORDER BY PDE_ID
+    `;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -17,24 +25,27 @@ export async function getPrestamoDetalles(req, res) {
   }
 }
 
-/* =======================
-   OBTENER POR ID
-======================= */
 export async function getPrestamoDetalleById(req, res) {
   try {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_PRESTAMO_DETALLE
+      SELECT
+        PDE_ID,
+        PDE_NUMERO_CUOTA,
+        PDE_FECHA_PAGO,
+        PDE_MONTO,
+        PDE_SALDO_RESTANTE,
+        PDE_ESTADO,
+        PRE_ID
+      FROM NOM_PRESTAMO_DETALLE
       WHERE PDE_ID = :id
     `;
 
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "Detalle de préstamo no encontrado"
-      });
+      return res.status(404).json({ message: "Detalle de préstamo no encontrado" });
     }
 
     res.json(result.rows[0]);
@@ -46,17 +57,14 @@ export async function getPrestamoDetalleById(req, res) {
   }
 }
 
-/* =======================
-   CREAR
-======================= */
 export async function createPrestamoDetalle(req, res) {
   try {
     const {
-      numero_cuota,
-      fecha_pago,
-      monto,
-      saldo_restante,
-      estado,
+      pde_numero_cuota,
+      pde_fecha_pago,
+      pde_monto,
+      pde_saldo_restante,
+      pde_estado,
       pre_id
     } = req.body;
 
@@ -69,29 +77,28 @@ export async function createPrestamoDetalle(req, res) {
         PDE_SALDO_RESTANTE,
         PDE_ESTADO,
         PRE_ID
-      ) VALUES (
+      )
+      VALUES (
         NOM_PRESTAMO_DETALLE_SEQ.NEXTVAL,
-        :numero_cuota,
-        :fecha_pago,
-        :monto,
-        :saldo_restante,
-        :estado,
+        :pde_numero_cuota,
+        TO_DATE(:pde_fecha_pago, 'YYYY-MM-DD'),
+        :pde_monto,
+        :pde_saldo_restante,
+        :pde_estado,
         :pre_id
       )
     `;
 
     await executeQuery(sql, {
-      numero_cuota,
-      fecha_pago,
-      monto,
-      saldo_restante,
-      estado,
+      pde_numero_cuota,
+      pde_fecha_pago,
+      pde_monto,
+      pde_saldo_restante,
+      pde_estado,
       pre_id
     });
 
-    res.status(201).json({
-      message: "Detalle de préstamo creado correctamente"
-    });
+    res.status(201).json({ message: "Detalle de préstamo creado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error creando detalle de préstamo",
@@ -100,52 +107,45 @@ export async function createPrestamoDetalle(req, res) {
   }
 }
 
-/* =======================
-   ACTUALIZAR
-======================= */
 export async function updatePrestamoDetalle(req, res) {
   try {
     const { id } = req.params;
     const {
-      numero_cuota,
-      fecha_pago,
-      monto,
-      saldo_restante,
-      estado,
+      pde_numero_cuota,
+      pde_fecha_pago,
+      pde_monto,
+      pde_saldo_restante,
+      pde_estado,
       pre_id
     } = req.body;
 
     const sql = `
       UPDATE NOM_PRESTAMO_DETALLE
-      SET 
-        PDE_NUMERO_CUOTA = :numero_cuota,
-        PDE_FECHA_PAGO = :fecha_pago,
-        PDE_MONTO = :monto,
-        PDE_SALDO_RESTANTE = :saldo_restante,
-        PDE_ESTADO = :estado,
+      SET
+        PDE_NUMERO_CUOTA = :pde_numero_cuota,
+        PDE_FECHA_PAGO = TO_DATE(:pde_fecha_pago, 'YYYY-MM-DD'),
+        PDE_MONTO = :pde_monto,
+        PDE_SALDO_RESTANTE = :pde_saldo_restante,
+        PDE_ESTADO = :pde_estado,
         PRE_ID = :pre_id
       WHERE PDE_ID = :id
     `;
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      numero_cuota,
-      fecha_pago,
-      monto,
-      saldo_restante,
-      estado,
+      pde_numero_cuota,
+      pde_fecha_pago,
+      pde_monto,
+      pde_saldo_restante,
+      pde_estado,
       pre_id
     });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "Detalle de préstamo no encontrado"
-      });
+      return res.status(404).json({ message: "Detalle de préstamo no encontrado" });
     }
 
-    res.json({
-      message: "Detalle de préstamo actualizado correctamente"
-    });
+    res.json({ message: "Detalle de préstamo actualizado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error actualizando detalle de préstamo",
@@ -154,9 +154,6 @@ export async function updatePrestamoDetalle(req, res) {
   }
 }
 
-/* =======================
-   ELIMINAR
-======================= */
 export async function deletePrestamoDetalle(req, res) {
   try {
     const { id } = req.params;
@@ -169,14 +166,10 @@ export async function deletePrestamoDetalle(req, res) {
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "Detalle de préstamo no encontrado"
-      });
+      return res.status(404).json({ message: "Detalle de préstamo no encontrado" });
     }
 
-    res.json({
-      message: "Detalle de préstamo eliminado correctamente"
-    });
+    res.json({ message: "Detalle de préstamo eliminado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error eliminando detalle de préstamo",
