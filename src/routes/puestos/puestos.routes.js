@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router } from "express"; //para manejar rutas
 import {
   getPuestos,
   getPuestosConDepartamento,
@@ -17,6 +17,5 @@ router.get("/:id", getPuestoById);
 router.post("/", createPuesto);
 router.put("/:id", updatePuesto);
 router.delete("/:id", deletePuesto);
-router.put("/desactivar/:id", deletePuestoLogico);
 
 export default router;

@@ -1,11 +1,21 @@
 import { executeQuery } from "../../config/db.js";
 
-/* =======================
-   OBTENER
-======================= */
+// GET - Obtener todos los departamentos
 export async function getDepartamentos(req, res) {
   try {
-    const result = await executeQuery(`SELECT * FROM NOM_DEPARTAMENTO`);
+    const sql = `
+      SELECT
+        DEP_ID,
+        DEP_NOMBRE,
+        DEP_DESCRIPCION,
+        DEP_ESTADO,
+        DEP_FECHA_CREACION,
+        DEP_MODIFICACION
+      FROM NOM_DEPARTAMENTO
+      ORDER BY DEP_ID
+    `;
+
+    const result = await executeQuery(sql);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({
@@ -15,17 +25,24 @@ export async function getDepartamentos(req, res) {
   }
 }
 
-/* =======================
-   POR ID
-======================= */
+// GET BY ID
 export async function getDepartamentoById(req, res) {
   try {
     const { id } = req.params;
 
-    const result = await executeQuery(
-      `SELECT * FROM NOM_DEPARTAMENTO WHERE DEP_ID = :id`,
-      { id: Number(id) }
-    );
+    const sql = `
+      SELECT
+        DEP_ID,
+        DEP_NOMBRE,
+        DEP_DESCRIPCION,
+        DEP_ESTADO,
+        DEP_FECHA_CREACION,
+        DEP_MODIFICACION
+      FROM NOM_DEPARTAMENTO
+      WHERE DEP_ID = :id
+    `;
+
+    const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -42,12 +59,14 @@ export async function getDepartamentoById(req, res) {
   }
 }
 
-/* =======================
-   CREAR
-======================= */
+// CREATE
 export async function createDepartamento(req, res) {
   try {
-    const { nombre, descripcion, estado } = req.body;
+    const {
+      dep_nombre,
+      dep_descripcion,
+      dep_estado
+    } = req.body;
 
     const sql = `
       INSERT INTO NOM_DEPARTAMENTO (
@@ -56,16 +75,21 @@ export async function createDepartamento(req, res) {
         DEP_DESCRIPCION,
         DEP_ESTADO,
         DEP_FECHA_CREACION
-      ) VALUES (
-        NOM_DEP_SEQ.NEXTVAL,
-        :nombre,
-        :descripcion,
-        :estado,
+      )
+      VALUES (
+        NOM_DEPARTAMENTO_SEQ.NEXTVAL,
+        :dep_nombre,
+        :dep_descripcion,
+        :dep_estado,
         SYSDATE
       )
     `;
 
-    await executeQuery(sql, { nombre, descripcion, estado });
+    await executeQuery(sql, {
+      dep_nombre,
+      dep_descripcion,
+      dep_estado
+    });
 
     res.status(201).json({
       message: "Departamento creado correctamente"
@@ -78,29 +102,31 @@ export async function createDepartamento(req, res) {
   }
 }
 
-/* =======================
-   ACTUALIZAR
-======================= */
+// UPDATE
 export async function updateDepartamento(req, res) {
   try {
     const { id } = req.params;
-    const { nombre, descripcion, estado } = req.body;
+    const {
+      dep_nombre,
+      dep_descripcion,
+      dep_estado
+    } = req.body;
 
     const sql = `
       UPDATE NOM_DEPARTAMENTO
-      SET 
-        DEP_NOMBRE = :nombre,
-        DEP_DESCRIPCION = :descripcion,
-        DEP_ESTADO = :estado,
+      SET
+        DEP_NOMBRE = :dep_nombre,
+        DEP_DESCRIPCION = :dep_descripcion,
+        DEP_ESTADO = :dep_estado,
         DEP_MODIFICACION = SYSDATE
       WHERE DEP_ID = :id
     `;
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      nombre,
-      descripcion,
-      estado
+      dep_nombre,
+      dep_descripcion,
+      dep_estado
     });
 
     if (result.rowsAffected === 0) {
@@ -120,20 +146,26 @@ export async function updateDepartamento(req, res) {
   }
 }
 
-/* =======================
-   BORRADO LÓGICO
-======================= */
-export async function deleteDepartamentoLogico(req, res) {
+// DELETE (físico)
+export async function deleteDepartamento(req, res) {
   try {
     const { id } = req.params;
 
-    await executeQuery(
-      `UPDATE NOM_DEPARTAMENTO SET DEP_ESTADO = 'I' WHERE DEP_ID = :id`,
-      { id: Number(id) }
-    );
+    const sql = `
+      DELETE FROM NOM_DEPARTAMENTO
+      WHERE DEP_ID = :id
+    `;
+
+    const result = await executeQuery(sql, { id: Number(id) });
+
+    if (result.rowsAffected === 0) {
+      return res.status(404).json({
+        message: "Departamento no encontrado"
+      });
+    }
 
     res.json({
-      message: "Departamento desactivado correctamente"
+      message: "Departamento eliminado correctamente"
     });
   } catch (error) {
     res.status(500).json({

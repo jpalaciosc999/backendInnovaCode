@@ -209,28 +209,3 @@ export async function deletePuesto(req, res) {
   }
 }
 
-/* =======================
-   BORRADO LÓGICO
-======================= */
-export async function deletePuestoLogico(req, res) {
-  try {
-    const { id } = req.params;
-
-    const sql = `
-      UPDATE NOM_PUESTO
-      SET PUE_ESTADO = 'I'
-      WHERE PUE_ID = :id
-    `;
-
-    await executeQuery(sql, { id: Number(id) });
-
-    res.json({
-      message: "Puesto desactivado correctamente"
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Error en borrado lógico",
-      error: error.message
-    });
-  }
-}
