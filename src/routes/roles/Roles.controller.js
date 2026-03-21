@@ -1,4 +1,4 @@
-import { executeQuery } from "../../config/db";
+import { executeQuery } from "../../config/db.js";
 
 export async function getRoles(req, res) {
     try {

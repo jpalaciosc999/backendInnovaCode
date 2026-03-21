@@ -5,7 +5,7 @@ import {
   createNominaDetalle,
   updateNominaDetalle,
   deleteNominaDetalle
-} from "./nominaDetalle.controller.js";
+} from "./nomina_detalle.controller.js";
 
 const router = express.Router();
 

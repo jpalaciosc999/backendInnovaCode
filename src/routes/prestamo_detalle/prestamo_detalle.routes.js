@@ -5,7 +5,7 @@ import {
   createPrestamoDetalle,
   updatePrestamoDetalle,
   deletePrestamoDetalle
-} from "./prestamoDetalle.controller.js";
+} from "./prestamo_detalle.controller.js";
 
 const router = express.Router();
 
