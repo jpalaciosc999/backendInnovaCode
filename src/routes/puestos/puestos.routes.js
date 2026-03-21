@@ -5,8 +5,7 @@ import {
   getPuestoById,
   createPuesto,
   updatePuesto,
-  deletePuesto,
-  deletePuestoLogico
+  deletePuesto
 } from "./puestos.controller.js";
 
 const router = Router();
