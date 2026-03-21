@@ -1,11 +1,11 @@
 import { Router } from "express";
 import {
-    getRoles,
-    getRolById,
-    createRol,
-    updateRol,
-    deleteRol
-} from "./Roles.controller.js";
+  getRoles,
+  getRolById,
+  createRol,
+  updateRol,
+  deleteRol
+} from "./roles.controller.js";
 
 const router = Router();
 
