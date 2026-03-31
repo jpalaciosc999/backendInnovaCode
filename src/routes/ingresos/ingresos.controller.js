@@ -52,11 +52,11 @@ export async function getIngresoById(req, res) {
 export async function createIngreso(req, res) {
   try {
     const {
-      codigo,
-      nombre,
-      descripcion,
-      valor_base,
-      es_recurrente
+      tis_codigo,
+      tis_nombre,
+      tis_descripcion,
+      tis_valor_base,
+      tis_es_recurrente
     } = req.body;
 
     const sql = `
@@ -80,11 +80,11 @@ export async function createIngreso(req, res) {
     `;
 
     await executeQuery(sql, {
-      codigo,
-      nombre,
-      descripcion,
-      valor_base,
-      es_recurrente
+      codigo: tis_codigo,
+      nombre: tis_nombre,
+      descripcion: tis_descripcion,
+      valor_base: tis_valor_base,
+      es_recurrente: tis_es_recurrente
     });
 
     res.status(201).json({
@@ -104,12 +104,13 @@ export async function createIngreso(req, res) {
 export async function updateIngreso(req, res) {
   try {
     const { id } = req.params;
+
     const {
-      codigo,
-      nombre,
-      descripcion,
-      valor_base,
-      es_recurrente
+      tis_codigo,
+      tis_nombre,
+      tis_descripcion,
+      tis_valor_base,
+      tis_es_recurrente
     } = req.body;
 
     const sql = `
@@ -126,11 +127,11 @@ export async function updateIngreso(req, res) {
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      codigo,
-      nombre,
-      descripcion,
-      valor_base,
-      es_recurrente
+      codigo: tis_codigo,
+      nombre: tis_nombre,
+      descripcion: tis_descripcion,
+      valor_base: tis_valor_base,
+      es_recurrente: tis_es_recurrente
     });
 
     if (result.rowsAffected === 0) {

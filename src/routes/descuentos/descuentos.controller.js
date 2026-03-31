@@ -52,14 +52,14 @@ export async function getDescuentoById(req, res) {
 export async function createDescuento(req, res) {
   try {
     const {
-      codigo,
-      nombre,
-      descripcion,
-      tipo_calculo,
-      valor_base,
-      porcentaje,
-      es_obligatorio,
-      estado
+      tds_codigo,
+      tds_nombre,
+      tds_descripcion,
+      tds_tipo_calculo,
+      tds_valor_base,
+      tds_porcentaje,
+      tds_es_obligatorio,
+      tds_estado
     } = req.body;
 
     const sql = `
@@ -91,14 +91,14 @@ export async function createDescuento(req, res) {
     `;
 
     await executeQuery(sql, {
-      codigo,
-      nombre,
-      descripcion,
-      tipo_calculo,
-      valor_base,
-      porcentaje,
-      es_obligatorio,
-      estado
+      codigo: tds_codigo,
+      nombre: tds_nombre,
+      descripcion: tds_descripcion,
+      tipo_calculo: tds_tipo_calculo,
+      valor_base: tds_valor_base,
+      porcentaje: tds_porcentaje,
+      es_obligatorio: tds_es_obligatorio,
+      estado: tds_estado
     });
 
     res.status(201).json({
@@ -119,14 +119,14 @@ export async function updateDescuento(req, res) {
   try {
     const { id } = req.params;
     const {
-      codigo,
-      nombre,
-      descripcion,
-      tipo_calculo,
-      valor_base,
-      porcentaje,
-      es_obligatorio,
-      estado
+      tds_codigo,
+      tds_nombre,
+      tds_descripcion,
+      tds_tipo_calculo,
+      tds_valor_base,
+      tds_porcentaje,
+      tds_es_obligatorio,
+      tds_estado
     } = req.body;
 
     const sql = `
@@ -146,14 +146,14 @@ export async function updateDescuento(req, res) {
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      codigo,
-      nombre,
-      descripcion,
-      tipo_calculo,
-      valor_base,
-      porcentaje,
-      es_obligatorio,
-      estado
+      codigo: tds_codigo,
+      nombre: tds_nombre,
+      descripcion: tds_descripcion,
+      tipo_calculo: tds_tipo_calculo,
+      valor_base: tds_valor_base,
+      porcentaje: tds_porcentaje,
+      es_obligatorio: tds_es_obligatorio,
+      estado: tds_estado
     });
 
     if (result.rowsAffected === 0) {
