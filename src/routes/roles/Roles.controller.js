@@ -1,26 +1,27 @@
 import { executeQuery } from "../../config/db.js";
 
 export async function getRoles(req, res) {
-    try {
-        const sql = `
-          SELECT
-            ROL_ID,
-            ROL_NOMBRE,
-            ROL_NIVEL_ACCESO,
-            ROL_ESTADO
-            ROL_FECHA_CREACION
-          FROM NOM_PERMISOS
-        `;
+  try {
+    const sql = `
+      SELECT
+        ROL_ID,
+        ROL_NOMBRE,
+        ROL_DESCRIPCION,
+        ROL_NIVEL_ACCESO,
+        ROL_ESTADO,
+        ROL_FECHA_CREACION
+      FROM NOM_ROLES
+      ORDER BY ROL_ID
+    `;
 
-        const result = await executeQuery(sql);
-
-        res.json(result.rows);
-    } catch (error) {
-        res.status(500).json({
-            message: "Error obtenido roles",
-            error: error.message
-        });
-    }
+    const result = await executeQuery(sql);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error obteniendo roles",
+      error: error.message
+    });
+  }
 }
 
 export async function getRolById(req, res) {
@@ -28,9 +29,10 @@ export async function getRolById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT 
+      SELECT
         ROL_ID,
         ROL_NOMBRE,
+        ROL_DESCRIPCION,
         ROL_NIVEL_ACCESO,
         ROL_ESTADO,
         ROL_FECHA_CREACION
@@ -41,9 +43,7 @@ export async function getRolById(req, res) {
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "Rol no encontrado"
-      });
+      return res.status(404).json({ message: "Rol no encontrado" });
     }
 
     res.json(result.rows[0]);
@@ -57,35 +57,42 @@ export async function getRolById(req, res) {
 
 export async function createRol(req, res) {
   try {
-    const { nombre, nivel_acceso, estado } = req.body;
-
-    if (!nombre || !nivel_acceso || !estado) {
-      return res.status(400).json({
-        message: "Todos los campos son obligatorios"
-      });
-    }
+    const {
+      rol_nombre,
+      rol_descripcion,
+      rol_nivel_acceso,
+      rol_estado,
+      rol_fecha_creacion
+    } = req.body;
 
     const sql = `
       INSERT INTO NOM_ROLES (
         ROL_ID,
         ROL_NOMBRE,
+        ROL_DESCRIPCION,
         ROL_NIVEL_ACCESO,
         ROL_ESTADO,
         ROL_FECHA_CREACION
-      ) VALUES (
+      )
+      VALUES (
         NOM_ROLES_SEQ.NEXTVAL,
-        :nombre,
-        :nivel_acceso,
-        :estado,
-        SYSDATE
+        :rol_nombre,
+        :rol_descripcion,
+        :rol_nivel_acceso,
+        :rol_estado,
+        TO_DATE(:rol_fecha_creacion, 'YYYY-MM-DD')
       )
     `;
 
-    await executeQuery(sql, { nombre, nivel_acceso, estado });
-
-    res.status(201).json({
-      message: "Rol creado correctamente"
+    await executeQuery(sql, {
+      rol_nombre,
+      rol_descripcion,
+      rol_nivel_acceso,
+      rol_estado,
+      rol_fecha_creacion
     });
+
+    res.status(201).json({ message: "Rol creado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error creando rol",
@@ -97,33 +104,39 @@ export async function createRol(req, res) {
 export async function updateRol(req, res) {
   try {
     const { id } = req.params;
-    const { nombre, nivel_acceso, estado } = req.body;
+    const {
+      rol_nombre,
+      rol_descripcion,
+      rol_nivel_acceso,
+      rol_estado,
+      rol_fecha_creacion
+    } = req.body;
 
     const sql = `
       UPDATE NOM_ROLES
-      SET 
-        ROL_NOMBRE = :nombre,
-        ROL_NIVEL_ACCESO = :nivel_acceso,
-        ROL_ESTADO = :estado
+      SET
+        ROL_NOMBRE = :rol_nombre,
+        ROL_DESCRIPCION = :rol_descripcion,
+        ROL_NIVEL_ACCESO = :rol_nivel_acceso,
+        ROL_ESTADO = :rol_estado,
+        ROL_FECHA_CREACION = TO_DATE(:rol_fecha_creacion, 'YYYY-MM-DD')
       WHERE ROL_ID = :id
     `;
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      nombre,
-      nivel_acceso,
-      estado
+      rol_nombre,
+      rol_descripcion,
+      rol_nivel_acceso,
+      rol_estado,
+      rol_fecha_creacion
     });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "Rol no encontrado"
-      });
+      return res.status(404).json({ message: "Rol no encontrado" });
     }
 
-    res.json({
-      message: "Rol actualizado correctamente"
-    });
+    res.json({ message: "Rol actualizado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error actualizando rol",
@@ -144,14 +157,10 @@ export async function deleteRol(req, res) {
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "Rol no encontrado"
-      });
+      return res.status(404).json({ message: "Rol no encontrado" });
     }
 
-    res.json({
-      message: "Rol eliminado correctamente"
-    });
+    res.json({ message: "Rol eliminado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error eliminando rol",

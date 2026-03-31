@@ -4,7 +4,7 @@ import {
   getDepartamentoById,
   createDepartamento,
   updateDepartamento,
-  deleteDepartamentoLogico
+  deleteDepartamento
 } from "./departamentos.controller.js";
 
 const router = Router();
@@ -13,6 +13,6 @@ router.get("/", getDepartamentos);
 router.get("/:id", getDepartamentoById);
 router.post("/", createDepartamento);
 router.put("/:id", updateDepartamento);
-router.put("/desactivar/:id", deleteDepartamentoLogico);
+router.delete("/:id", deleteDepartamento);
 
 export default router;
