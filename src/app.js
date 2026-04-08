@@ -26,6 +26,7 @@ import bitacorasRoutes from "./routes/bitacoras/bitacoras.routes.js";
 import usuarioBitacoraRoutes from "./routes/usuarioBitacora/usuarioBitacora.routes.js";
 import tipoContratoRoutes from "./routes/tipoContrato/tipoContrato.routes.js";
 import empleadoContratoRoutes from "./routes/empleadoContrato/empleadoContrato.routes.js";
+import marcajeRoutes from "./routes/marcaje/marcaje.routes.js";
 
 const app = express();
 
@@ -66,5 +67,6 @@ app.use("/bitacoras", bitacorasRoutes);
 app.use("/usuarioBitacora", usuarioBitacoraRoutes);
 app.use("/tipoContrato", tipoContratoRoutes);
 app.use("/empleadoContrato", empleadoContratoRoutes);
+app.use("/marcaje", marcajeRoutes);
 
 export default app;
