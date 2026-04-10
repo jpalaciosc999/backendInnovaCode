@@ -1,5 +1,8 @@
 import { executeQuery } from "../../config/db.js";
 
+/* =======================
+   OBTENER DEPARTAMENTOS
+======================= */
 export async function getDepartamentos(req, res) {
   try {
     const sql = `
@@ -10,7 +13,7 @@ export async function getDepartamentos(req, res) {
         DEP_ESTADO,
         DEP_FECHA_CREACION,
         DEP_MODIFICACION
-      FROM NOM_DEPARTAMENTO
+      FROM EMP_DEPARTAMENTO
       ORDER BY DEP_ID
     `;
 
@@ -24,19 +27,15 @@ export async function getDepartamentos(req, res) {
   }
 }
 
+/* =======================
+   OBTENER POR ID
+======================= */
 export async function getDepartamentoById(req, res) {
   try {
     const { id } = req.params;
 
     const sql = `
-      SELECT
-        DEP_ID,
-        DEP_NOMBRE,
-        DEP_DESCRIPCION,
-        DEP_ESTADO,
-        DEP_FECHA_CREACION,
-        DEP_MODIFICACION
-      FROM NOM_DEPARTAMENTO
+      SELECT * FROM EMP_DEPARTAMENTO
       WHERE DEP_ID = :id
     `;
 
@@ -55,16 +54,25 @@ export async function getDepartamentoById(req, res) {
   }
 }
 
+/* =======================
+   CREAR DEPARTAMENTO
+======================= */
 export async function createDepartamento(req, res) {
   try {
-    const {
-      dep_nombre,
-      dep_descripcion,
-      dep_estado
-    } = req.body;
+    // Se extraen los datos permitiendo variaciones en los nombres de las llaves
+    const nombre = req.body.dep_nombre || req.body.nombre;
+    const descripcion = req.body.dep_descripcion || req.body.descripcion;
+    const estado = req.body.dep_estado || req.body.estado || 'A';
+
+    // Validación preventiva para evitar el error ORA-01400 (NULL en DEP_NOMBRE)
+    if (!nombre) {
+      return res.status(400).json({
+        message: "El nombre del departamento es obligatorio."
+      });
+    }
 
     const sql = `
-      INSERT INTO NOM_DEPARTAMENTO (
+      INSERT INTO EMP_DEPARTAMENTO (
         DEP_ID,
         DEP_NOMBRE,
         DEP_DESCRIPCION,
@@ -73,19 +81,19 @@ export async function createDepartamento(req, res) {
         DEP_MODIFICACION
       )
       VALUES (
-        NOM_DEPARTAMENTO_SEQ.NEXTVAL,
-        :dep_nombre,
-        :dep_descripcion,
-        :dep_estado,
+        EMP_DEPARTAMENTO_SEQ.NEXTVAL,
+        :nombre,
+        :descripcion,
+        :estado,
         SYSDATE,
         SYSDATE
       )
     `;
 
     await executeQuery(sql, {
-      dep_nombre,
-      dep_descripcion,
-      dep_estado
+      nombre: nombre,
+      descripcion: descripcion || null,
+      estado: estado
     });
 
     res.status(201).json({ message: "Departamento creado correctamente" });
@@ -97,30 +105,31 @@ export async function createDepartamento(req, res) {
   }
 }
 
+/* =======================
+   ACTUALIZAR DEPARTAMENTO
+======================= */
 export async function updateDepartamento(req, res) {
   try {
     const { id } = req.params;
-    const {
-      dep_nombre,
-      dep_descripcion,
-      dep_estado
-    } = req.body;
+    const nombre = req.body.dep_nombre || req.body.nombre;
+    const descripcion = req.body.dep_descripcion || req.body.descripcion;
+    const estado = req.body.dep_estado || req.body.estado;
 
     const sql = `
-      UPDATE NOM_DEPARTAMENTO
+      UPDATE EMP_DEPARTAMENTO
       SET
-        DEP_NOMBRE = :dep_nombre,
-        DEP_DESCRIPCION = :dep_descripcion,
-        DEP_ESTADO = :dep_estado,
+        DEP_NOMBRE = :nombre,
+        DEP_DESCRIPCION = :descripcion,
+        DEP_ESTADO = :estado,
         DEP_MODIFICACION = SYSDATE
       WHERE DEP_ID = :id
     `;
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      dep_nombre,
-      dep_descripcion,
-      dep_estado
+      nombre: nombre,
+      descripcion: descripcion,
+      estado: estado
     });
 
     if (result.rowsAffected === 0) {
@@ -136,15 +145,13 @@ export async function updateDepartamento(req, res) {
   }
 }
 
+/* =======================
+   ELIMINAR DEPARTAMENTO
+======================= */
 export async function deleteDepartamento(req, res) {
   try {
     const { id } = req.params;
-
-    const sql = `
-      DELETE FROM NOM_DEPARTAMENTO
-      WHERE DEP_ID = :id
-    `;
-
+    const sql = `DELETE FROM EMP_DEPARTAMENTO WHERE DEP_ID = :id`;
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rowsAffected === 0) {
