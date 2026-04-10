@@ -5,7 +5,8 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getIngresos(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_INGRESO`;
+    // Cambio a tabla EMP_INGRESO
+    const sql = `SELECT * FROM EMP_INGRESO`;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -25,7 +26,7 @@ export async function getIngresoById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_INGRESO
+      SELECT * FROM EMP_INGRESO
       WHERE TIS_ID = :id
     `;
 
@@ -59,17 +60,18 @@ export async function createIngreso(req, res) {
       tis_es_recurrente
     } = req.body;
 
+    // Ajustado: EMP_INGRESO, EMP_INGRESO_SEQ y nombres de columnas correctos
     const sql = `
-      INSERT INTO NOM_INGRESO (
+      INSERT INTO EMP_INGRESO (
         TIS_ID,
         TIS_CODIGO,
         TIS_NOMBRE,
         TIS_DESCRIPCION,
         TIS_VALOR_BASE,
-        TIS_ES_RECURRENT,
-        FECHA_MODIFICACION
+        TIS_ES_RECURRENTE,
+        TIS_FECHA_MODIFICACION
       ) VALUES (
-        NOM_INGRESO_SEQ.NEXTVAL,
+        EMP_INGRESO_SEQ.NEXTVAL,
         :codigo,
         :nombre,
         :descripcion,
@@ -104,7 +106,6 @@ export async function createIngreso(req, res) {
 export async function updateIngreso(req, res) {
   try {
     const { id } = req.params;
-
     const {
       tis_codigo,
       tis_nombre,
@@ -114,14 +115,14 @@ export async function updateIngreso(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_INGRESO
+      UPDATE EMP_INGRESO
       SET 
         TIS_CODIGO = :codigo,
         TIS_NOMBRE = :nombre,
         TIS_DESCRIPCION = :descripcion,
         TIS_VALOR_BASE = :valor_base,
-        TIS_ES_RECURRENT = :es_recurrente,
-        FECHA_MODIFICACION = SYSDATE
+        TIS_ES_RECURRENTE = :es_recurrente,
+        TIS_FECHA_MODIFICACION = SYSDATE
       WHERE TIS_ID = :id
     `;
 
@@ -159,7 +160,7 @@ export async function deleteIngreso(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_INGRESO
+      DELETE FROM EMP_INGRESO
       WHERE TIS_ID = :id
     `;
 

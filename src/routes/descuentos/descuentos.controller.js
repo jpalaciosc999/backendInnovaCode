@@ -5,7 +5,8 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getDescuentos(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_DESCUENTO`;
+    // Cambio de NOM_DESCUENTO a EMP_DESCUENTO
+    const sql = `SELECT * FROM EMP_DESCUENTO`;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -25,7 +26,7 @@ export async function getDescuentoById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_DESCUENTO
+      SELECT * FROM EMP_DESCUENTO
       WHERE TDS_ID = :id
     `;
 
@@ -62,8 +63,9 @@ export async function createDescuento(req, res) {
       tds_estado
     } = req.body;
 
+    // Se actualizó la tabla y la secuencia (asumiendo que la secuencia ahora es EMP_DESCUENTO_SEQ)
     const sql = `
-      INSERT INTO NOM_DESCUENTO (
+      INSERT INTO EMP_DESCUENTO (
         TDS_ID,
         TDS_CODIGO,
         TDS_NOMBRE,
@@ -76,7 +78,7 @@ export async function createDescuento(req, res) {
         TDS_FECHA_CREACION,
         TDS_MODIFICACION
       ) VALUES (
-        NOM_DESCUENTO_SEQ.NEXTVAL,
+        EMP_DESCUENTO_SEQ.NEXTVAL,
         :codigo,
         :nombre,
         :descripcion,
@@ -130,7 +132,7 @@ export async function updateDescuento(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_DESCUENTO
+      UPDATE EMP_DESCUENTO
       SET 
         TDS_CODIGO = :codigo,
         TDS_NOMBRE = :nombre,
@@ -181,7 +183,7 @@ export async function deleteDescuento(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_DESCUENTO
+      DELETE FROM EMP_DESCUENTO
       WHERE TDS_ID = :id
     `;
 
