@@ -32,13 +32,23 @@ export async function getMarcajeById(req, res) {
 }
 
 /* =======================
-   CREAR (Con conversión de fechas)
+   CREAR (Con cálculo automático de Horas Extra)
 ======================= */
 export async function createMarcaje(req, res) {
   try {
-    const { fecha, entrada, salida, horas_extra, estado, emp_id } = req.body;
+    const { fecha, entrada, salida, estado, emp_id } = req.body;
 
-    // Usamos TO_DATE para asegurar que Oracle procese la hora correctamente
+    // --- LÓGICA DE CÁLCULO PASO 1 ---
+    const dateEntrada = new Date(entrada);
+    const dateSalida = new Date(salida);
+
+    // Calculamos la diferencia en horas
+    const diffMs = dateSalida - dateEntrada;
+    const totalHoras = diffMs / (1000 * 60 * 60);
+
+    // Si excede las 8 horas legales, el resto es hora extra
+    const calculoHorasExtra = totalHoras > 8 ? parseFloat((totalHoras - 8).toFixed(2)) : 0;
+
     const sql = `
       INSERT INTO EMP_MARCAJE (
         MAR_ID,
@@ -49,7 +59,7 @@ export async function createMarcaje(req, res) {
         MAR_ESTADO,
         EMP_ID
       ) VALUES (
-        EMP_MARCAJE_SEQ.NEXTVAL,
+        SEQ_EMP_MARCAJE.NEXTVAL,
         TO_DATE(:fecha, 'YYYY-MM-DD'),
         TO_DATE(:entrada, 'YYYY-MM-DD"T"HH24:MI'),
         TO_DATE(:salida, 'YYYY-MM-DD"T"HH24:MI'),
@@ -61,15 +71,28 @@ export async function createMarcaje(req, res) {
 
     await executeQuery(sql, {
       fecha,
-      entrada,     // Formato esperado de HTML datetime-local: "2023-10-25T08:00"
-      salida,      // Formato esperado de HTML datetime-local: "2023-10-25T17:00"
-      horas_extra: Number(horas_extra),
-      estado,
+      entrada,
+      salida,
+      horas_extra: calculoHorasExtra, // Usamos el cálculo automático
+      estado: estado || 'Normal',
       emp_id: Number(emp_id)
     });
 
-    res.status(201).json({ message: "Marcaje creado correctamente" });
+    res.status(201).json({
+      message: "Marcaje creado correctamente",
+      detalles: {
+        horas_trabajadas: totalHoras.toFixed(2),
+        horas_extra_detectadas: calculoHorasExtra
+      }
+    });
+
   } catch (error) {
+    // Manejo del error de integridad (Si el empleado no existe)
+    if (error.message.includes("ORA-02291")) {
+      return res.status(400).json({
+        message: "Error: El ID de empleado no existe. Verifique la tabla de empleados."
+      });
+    }
     res.status(500).json({ message: "Error creando marcaje", error: error.message });
   }
 }
@@ -80,7 +103,13 @@ export async function createMarcaje(req, res) {
 export async function updateMarcaje(req, res) {
   try {
     const { id } = req.params;
-    const { fecha, entrada, salida, horas_extra, estado, emp_id } = req.body;
+    const { fecha, entrada, salida, estado, emp_id } = req.body;
+
+    // Recalcular horas extra también al actualizar
+    const dateEntrada = new Date(entrada);
+    const dateSalida = new Date(salida);
+    const totalHoras = (dateSalida - dateEntrada) / (1000 * 60 * 60);
+    const calculoHorasExtra = totalHoras > 8 ? parseFloat((totalHoras - 8).toFixed(2)) : 0;
 
     const sql = `
       UPDATE EMP_MARCAJE
@@ -99,7 +128,7 @@ export async function updateMarcaje(req, res) {
       fecha,
       entrada,
       salida,
-      horas_extra: Number(horas_extra),
+      horas_extra: calculoHorasExtra,
       estado,
       emp_id: Number(emp_id)
     });
