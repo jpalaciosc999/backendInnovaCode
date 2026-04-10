@@ -1,5 +1,11 @@
 import { executeQuery } from "../../config/db.js";
 
+const toNumber = (value) => {
+  return value === null || value === undefined || value === '' 
+    ? null 
+    : Number(value);
+};
+
 /* =======================
    OBTENER TODOS
 ======================= */
@@ -9,10 +15,7 @@ export async function getNominaDetalles(req, res) {
     const result = await executeQuery(sql);
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json({
-      message: "Error al obtener",
-      error: error.message
-    });
+    res.status(500).json({ message: "Error al obtener", error: error.message });
   }
 }
 
@@ -23,25 +26,17 @@ export async function getNominaDetalleById(req, res) {
   try {
     const { id } = req.params;
 
-    const sql = `
-      SELECT * FROM EMP_NOMINA_DETALLE
-      WHERE DET_ID = :id
-    `;
+    const sql = `SELECT * FROM EMP_NOMINA_DETALLE WHERE DET_ID = :id`;
 
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "Detalle no encontrado"
-      });
+      return res.status(404).json({ message: "Detalle no encontrado" });
     }
 
     res.json(result.rows[0]);
   } catch (error) {
-    res.status(500).json({
-      message: "Error obteniendo detalle",
-      error: error.message
-    });
+    res.status(500).json({ message: "Error obteniendo detalle", error: error.message });
   }
 }
 
@@ -50,7 +45,7 @@ export async function getNominaDetalleById(req, res) {
 ======================= */
 export async function createNominaDetalle(req, res) {
   try {
-    const { det_referencia, det_monto, nom_id, tis_id, tds_id, pre_id, kre_id } = req.body;
+    const { det_referencia, det_monto, nom_id, tis_id, tds_id, kre_id } = req.body;
 
     const sql = `
       INSERT INTO EMP_NOMINA_DETALLE (
@@ -60,7 +55,6 @@ export async function createNominaDetalle(req, res) {
         NOM_ID,
         TIS_ID,
         TDS_ID,
-        PRE_ID,
         KRE_ID
       ) VALUES (
         EMP_NOMINA_DETALLE_SEQ.NEXTVAL,
@@ -69,27 +63,23 @@ export async function createNominaDetalle(req, res) {
         :nom_id,
         :tis_id,
         :tds_id,
-        :pre_id,
         :kre_id
       )
     `;
 
     await executeQuery(sql, {
-      referencia: Number(det_referencia),
-      monto: Number(det_monto),
-      nom_id: Number(nom_id),
-      tis_id: Number(tis_id),
-      tds_id: Number(tds_id),
-      pre_id: Number(pre_id),
-      kre_id: Number(kre_id)
+      referencia: toNumber(det_referencia),
+      monto: toNumber(det_monto),
+      nom_id: toNumber(nom_id),
+      tis_id: toNumber(tis_id),
+      tds_id: toNumber(tds_id),
+      kre_id: toNumber(kre_id)
     });
 
     res.status(201).json({ message: "Creado con éxito" });
+
   } catch (error) {
-    res.status(500).json({
-      message: "Error al crear",
-      error: error.message
-    });
+    res.status(500).json({ message: "Error al crear", error: error.message });
   }
 }
 
@@ -99,7 +89,7 @@ export async function createNominaDetalle(req, res) {
 export async function updateNominaDetalle(req, res) {
   try {
     const { id } = req.params;
-    const { det_referencia, det_monto, nom_id, tis_id, tds_id, pre_id, kre_id } = req.body;
+    const { det_referencia, det_monto, nom_id, tis_id, tds_id, kre_id } = req.body;
 
     const sql = `
       UPDATE EMP_NOMINA_DETALLE
@@ -109,34 +99,28 @@ export async function updateNominaDetalle(req, res) {
         NOM_ID = :nom_id,
         TIS_ID = :tis_id,
         TDS_ID = :tds_id,
-        PRE_ID = :pre_id,
         KRE_ID = :kre_id
       WHERE DET_ID = :id
     `;
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      referencia: Number(det_referencia),
-      monto: Number(det_monto),
-      nom_id: Number(nom_id),
-      tis_id: Number(tis_id),
-      tds_id: Number(tds_id),
-      pre_id: Number(pre_id),
-      kre_id: Number(kre_id)
+      referencia: toNumber(det_referencia),
+      monto: toNumber(det_monto),
+      nom_id: toNumber(nom_id),
+      tis_id: toNumber(tis_id),
+      tds_id: toNumber(tds_id),
+      kre_id: toNumber(kre_id)
     });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "Detalle no encontrado"
-      });
+      return res.status(404).json({ message: "Detalle no encontrado" });
     }
 
     res.json({ message: "Actualizado correctamente" });
+
   } catch (error) {
-    res.status(500).json({
-      message: "Error al actualizar",
-      error: error.message
-    });
+    res.status(500).json({ message: "Error al actualizar", error: error.message });
   }
 }
 
@@ -147,26 +131,17 @@ export async function deleteNominaDetalle(req, res) {
   try {
     const { id } = req.params;
 
-    const sql = `
-      DELETE FROM EMP_NOMINA_DETALLE
-      WHERE DET_ID = :id
-    `;
+    const sql = `DELETE FROM EMP_NOMINA_DETALLE WHERE DET_ID = :id`;
 
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "Detalle no encontrado"
-      });
+      return res.status(404).json({ message: "Detalle no encontrado" });
     }
 
-    res.json({
-      message: "Detalle eliminado correctamente"
-    });
+    res.json({ message: "Eliminado correctamente" });
+
   } catch (error) {
-    res.status(500).json({
-      message: "Error al eliminar",
-      error: error.message
-    });
+    res.status(500).json({ message: "Error al eliminar", error: error.message });
   }
 }

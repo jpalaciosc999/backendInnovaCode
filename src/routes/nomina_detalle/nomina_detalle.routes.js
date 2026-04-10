@@ -1,11 +1,18 @@
-import { Router } from "express";
-import * as controller from "./nomina_detalle.controller.js";
+import express from "express";
+import {
+  getNominaDetalles,
+  getNominaDetalleById,
+  createNominaDetalle,
+  updateNominaDetalle,
+  deleteNominaDetalle
+} from "./nomina_detalle.controller.js";
 
-const router = Router();
+const router = express.Router();
 
-router.get("/", controller.getNominaDetalles);
-router.post("/", controller.createNominaDetalle);
-router.put("/:id", controller.updateNominaDetalle);
-router.delete("/:id", controller.deleteNominaDetalle);
+router.get("/", getNominaDetalles);
+router.get("/:id", getNominaDetalleById);
+router.post("/", createNominaDetalle);
+router.put("/:id", updateNominaDetalle);
+router.delete("/:id", deleteNominaDetalle);
 
 export default router;
