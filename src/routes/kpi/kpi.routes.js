@@ -1,13 +1,13 @@
-import express from "express";
+import { Router } from "express";
 import {
   getKpis,
   getKpiById,
   createKpi,
   updateKpi,
   deleteKpi
-} from "./kpi.controller.js";
+} from "./kpi.controller.js"; // El "./" significa "aquí mismo"
 
-const router = express.Router();
+const router = Router();
 
 router.get("/", getKpis);
 router.get("/:id", getKpiById);

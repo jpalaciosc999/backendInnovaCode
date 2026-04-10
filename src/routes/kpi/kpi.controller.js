@@ -1,12 +1,11 @@
 import { executeQuery } from "../../config/db.js";
 
 /* =======================
-   OBTENER KPIs
+   OBTENER TODOS LOS KPIs
 ======================= */
 export async function getKpis(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_KPI`;
-
+    const sql = `SELECT * FROM EMP_KPI ORDER BY KPI_ID DESC`;
     const result = await executeQuery(sql);
     res.json(result.rows);
   } catch (error) {
@@ -18,23 +17,16 @@ export async function getKpis(req, res) {
 }
 
 /* =======================
-   OBTENER POR ID
+   OBTENER KPI POR ID
 ======================= */
 export async function getKpiById(req, res) {
   try {
     const { id } = req.params;
-
-    const sql = `
-      SELECT * FROM NOM_KPI
-      WHERE KPI_ID = :id
-    `;
-
+    const sql = `SELECT * FROM EMP_KPI WHERE KPI_ID = :id`;
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "KPI no encontrado"
-      });
+      return res.status(404).json({ message: "KPI no encontrado" });
     }
 
     res.json(result.rows[0]);
@@ -47,35 +39,33 @@ export async function getKpiById(req, res) {
 }
 
 /* =======================
-   CREAR
+   CREAR KPI
 ======================= */
 export async function createKpi(req, res) {
   try {
-    const {
-      nombre,
-      tipo
-    } = req.body;
+    const { kpi_nombre, kpi_tipo, kpi_valor } = req.body;
 
     const sql = `
-      INSERT INTO NOM_KPI (
+      INSERT INTO EMP_KPI (
         KPI_ID,
         KPI_NOMBRE,
-        KPI_TIPO
+        KPI_TIPO,
+        KPI_VALOR
       ) VALUES (
-        NOM_KPI_SEQ.NEXTVAL,
+        EMP_KPI_SEQ.NEXTVAL,
         :nombre,
-        :tipo
+        :tipo,
+        :valor
       )
     `;
 
     await executeQuery(sql, {
-      nombre,
-      tipo
+      nombre: kpi_nombre,
+      tipo: kpi_tipo,
+      valor: Number(kpi_valor)
     });
 
-    res.status(201).json({
-      message: "KPI creado correctamente"
-    });
+    res.status(201).json({ message: "KPI creado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error creando KPI",
@@ -85,39 +75,34 @@ export async function createKpi(req, res) {
 }
 
 /* =======================
-   ACTUALIZAR
+   ACTUALIZAR KPI
 ======================= */
 export async function updateKpi(req, res) {
   try {
     const { id } = req.params;
-    const {
-      nombre,
-      tipo
-    } = req.body;
+    const { kpi_nombre, kpi_tipo, kpi_valor } = req.body;
 
     const sql = `
-      UPDATE NOM_KPI
+      UPDATE EMP_KPI
       SET 
         KPI_NOMBRE = :nombre,
-        KPI_TIPO = :tipo
+        KPI_TIPO = :tipo,
+        KPI_VALOR = :valor
       WHERE KPI_ID = :id
     `;
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      nombre,
-      tipo
+      nombre: kpi_nombre,
+      tipo: kpi_tipo,
+      valor: Number(kpi_valor)
     });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "KPI no encontrado"
-      });
+      return res.status(404).json({ message: "KPI no encontrado" });
     }
 
-    res.json({
-      message: "KPI actualizado correctamente"
-    });
+    res.json({ message: "KPI actualizado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error actualizando KPI",
@@ -127,28 +112,20 @@ export async function updateKpi(req, res) {
 }
 
 /* =======================
-   ELIMINAR
+   ELIMINAR KPI
 ======================= */
 export async function deleteKpi(req, res) {
   try {
     const { id } = req.params;
-
-    const sql = `
-      DELETE FROM NOM_KPI
-      WHERE KPI_ID = :id
-    `;
+    const sql = `DELETE FROM EMP_KPI WHERE KPI_ID = :id`;
 
     const result = await executeQuery(sql, { id: Number(id) });
 
     if (result.rowsAffected === 0) {
-      return res.status(404).json({
-        message: "KPI no encontrado"
-      });
+      return res.status(404).json({ message: "KPI no encontrado" });
     }
 
-    res.json({
-      message: "KPI eliminado correctamente"
-    });
+    res.json({ message: "KPI eliminado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error eliminando KPI",

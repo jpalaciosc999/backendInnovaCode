@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 import {
   getMarcajes,
   getMarcajeById,
@@ -7,7 +7,7 @@ import {
   deleteMarcaje
 } from "./marcaje.controller.js";
 
-const router = express.Router();
+const router = Router();
 
 router.get("/", getMarcajes);
 router.get("/:id", getMarcajeById);

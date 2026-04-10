@@ -52,13 +52,14 @@ export async function getIngresoById(req, res) {
 export async function createIngreso(req, res) {
   try {
     const {
-      codigo,
-      nombre,
-      descripcion,
-      valor_base,
-      es_recurrente
+      tis_codigo,
+      tis_nombre,
+      tis_descripcion,
+      tis_valor_base,
+      tis_es_recurrente
     } = req.body;
 
+    // Ajustado: EMP_INGRESO, EMP_INGRESO_SEQ y nombres de columnas correctos
     const sql = `
       INSERT INTO EMP_INGRESO (
         TIS_ID,
@@ -66,8 +67,8 @@ export async function createIngreso(req, res) {
         TIS_NOMBRE,
         TIS_DESCRIPCION,
         TIS_VALOR_BASE,
-        TIS_ES_RECURRENT,
-        FECHA_MODIFICACION
+        TIS_ES_RECURRENTE,
+        TIS_FECHA_MODIFICACION
       ) VALUES (
         EMP_INGRESO_SEQ.NEXTVAL,
         :codigo,
@@ -80,11 +81,11 @@ export async function createIngreso(req, res) {
     `;
 
     await executeQuery(sql, {
-      codigo,
-      nombre,
-      descripcion,
-      valor_base,
-      es_recurrente
+      codigo: tis_codigo,
+      nombre: tis_nombre,
+      descripcion: tis_descripcion,
+      valor_base: tis_valor_base,
+      es_recurrente: tis_es_recurrente
     });
 
     res.status(201).json({
@@ -105,11 +106,11 @@ export async function updateIngreso(req, res) {
   try {
     const { id } = req.params;
     const {
-      codigo,
-      nombre,
-      descripcion,
-      valor_base,
-      es_recurrente
+      tis_codigo,
+      tis_nombre,
+      tis_descripcion,
+      tis_valor_base,
+      tis_es_recurrente
     } = req.body;
 
     const sql = `
@@ -119,18 +120,18 @@ export async function updateIngreso(req, res) {
         TIS_NOMBRE = :nombre,
         TIS_DESCRIPCION = :descripcion,
         TIS_VALOR_BASE = :valor_base,
-        TIS_ES_RECURRENT = :es_recurrente,
-        FECHA_MODIFICACION = SYSDATE
+        TIS_ES_RECURRENTE = :es_recurrente,
+        TIS_FECHA_MODIFICACION = SYSDATE
       WHERE TIS_ID = :id
     `;
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      codigo,
-      nombre,
-      descripcion,
-      valor_base,
-      es_recurrente
+      codigo: tis_codigo,
+      nombre: tis_nombre,
+      descripcion: tis_descripcion,
+      valor_base: tis_valor_base,
+      es_recurrente: tis_es_recurrente
     });
 
     if (result.rowsAffected === 0) {

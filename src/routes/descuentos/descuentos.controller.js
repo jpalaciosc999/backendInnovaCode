@@ -5,7 +5,8 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getDescuentos(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_DESCUENTO`;
+    // Cambio de NOM_DESCUENTO a EMP_DESCUENTO
+    const sql = `SELECT * FROM EMP_DESCUENTO`;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -25,7 +26,7 @@ export async function getDescuentoById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_DESCUENTO
+      SELECT * FROM EMP_DESCUENTO
       WHERE TDS_ID = :id
     `;
 
@@ -52,18 +53,19 @@ export async function getDescuentoById(req, res) {
 export async function createDescuento(req, res) {
   try {
     const {
-      codigo,
-      nombre,
-      descripcion,
-      tipo_calculo,
-      valor_base,
-      porcentaje,
-      es_obligatorio,
-      estado
+      tds_codigo,
+      tds_nombre,
+      tds_descripcion,
+      tds_tipo_calculo,
+      tds_valor_base,
+      tds_porcentaje,
+      tds_es_obligatorio,
+      tds_estado
     } = req.body;
 
+    // Se actualizó la tabla y la secuencia (asumiendo que la secuencia ahora es EMP_DESCUENTO_SEQ)
     const sql = `
-      INSERT INTO NOM_DESCUENTO (
+      INSERT INTO EMP_DESCUENTO (
         TDS_ID,
         TDS_CODIGO,
         TDS_NOMBRE,
@@ -76,7 +78,7 @@ export async function createDescuento(req, res) {
         TDS_FECHA_CREACION,
         TDS_MODIFICACION
       ) VALUES (
-        NOM_DESCUENTO_SEQ.NEXTVAL,
+        EMP_DESCUENTO_SEQ.NEXTVAL,
         :codigo,
         :nombre,
         :descripcion,
@@ -91,14 +93,14 @@ export async function createDescuento(req, res) {
     `;
 
     await executeQuery(sql, {
-      codigo,
-      nombre,
-      descripcion,
-      tipo_calculo,
-      valor_base,
-      porcentaje,
-      es_obligatorio,
-      estado
+      codigo: tds_codigo,
+      nombre: tds_nombre,
+      descripcion: tds_descripcion,
+      tipo_calculo: tds_tipo_calculo,
+      valor_base: tds_valor_base,
+      porcentaje: tds_porcentaje,
+      es_obligatorio: tds_es_obligatorio,
+      estado: tds_estado
     });
 
     res.status(201).json({
@@ -119,18 +121,18 @@ export async function updateDescuento(req, res) {
   try {
     const { id } = req.params;
     const {
-      codigo,
-      nombre,
-      descripcion,
-      tipo_calculo,
-      valor_base,
-      porcentaje,
-      es_obligatorio,
-      estado
+      tds_codigo,
+      tds_nombre,
+      tds_descripcion,
+      tds_tipo_calculo,
+      tds_valor_base,
+      tds_porcentaje,
+      tds_es_obligatorio,
+      tds_estado
     } = req.body;
 
     const sql = `
-      UPDATE NOM_DESCUENTO
+      UPDATE EMP_DESCUENTO
       SET 
         TDS_CODIGO = :codigo,
         TDS_NOMBRE = :nombre,
@@ -146,14 +148,14 @@ export async function updateDescuento(req, res) {
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      codigo,
-      nombre,
-      descripcion,
-      tipo_calculo,
-      valor_base,
-      porcentaje,
-      es_obligatorio,
-      estado
+      codigo: tds_codigo,
+      nombre: tds_nombre,
+      descripcion: tds_descripcion,
+      tipo_calculo: tds_tipo_calculo,
+      valor_base: tds_valor_base,
+      porcentaje: tds_porcentaje,
+      es_obligatorio: tds_es_obligatorio,
+      estado: tds_estado
     });
 
     if (result.rowsAffected === 0) {
@@ -181,7 +183,7 @@ export async function deleteDescuento(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_DESCUENTO
+      DELETE FROM EMP_DESCUENTO
       WHERE TDS_ID = :id
     `;
 
