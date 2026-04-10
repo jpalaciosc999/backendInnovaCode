@@ -1,15 +1,15 @@
 import { Router } from "express";
 import {
-  getBitacoras,
+  getBitacora,
   getBitacoraById,
   createBitacora,
   updateBitacora,
   deleteBitacora
-} from "./bitacoras.controller.js";
+} from "./bitacora.controller.js";
 
 const router = Router();
 
-router.get("/", getBitacoras);
+router.get("/", getBitacora);
 router.get("/:id", getBitacoraById);
 router.post("/", createBitacora);
 router.put("/:id", updateBitacora);

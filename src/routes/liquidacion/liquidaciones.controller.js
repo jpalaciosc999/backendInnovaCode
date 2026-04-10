@@ -5,7 +5,7 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getLiquidaciones(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_LIQUIDACIONES`;
+    const sql = `SELECT * FROM EMP_LIQUIDACIONES`;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -25,7 +25,7 @@ export async function getLiquidacionById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_LIQUIDACIONES
+      SELECT * FROM EMP_LIQUIDACIONES
       WHERE LIQ_ID = :id
     `;
 
@@ -66,7 +66,7 @@ export async function createLiquidacion(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_LIQUIDACIONES (
+      INSERT INTO EMP_LIQUIDACIONES (
         LIQ_ID,
         LIQ_FECHA_RETIRO,
         LIQ_TIPO_RETIRO,
@@ -80,8 +80,8 @@ export async function createLiquidacion(req, res) {
         EMP_ID,
         LIQ_FECHA_SALIDA
       ) VALUES (
-        NOM_LIQUIDACIONES_SEQ.NEXTVAL,
-        :fecha_retiro,
+        SEQ_LIQUIDACION.NEXTVAL,
+        TO_DATE(:fecha_retiro, 'YYYY-MM-DD'),
         :tipo_retiro,
         :dias_trabajado,
         :indemnizacion,
@@ -89,9 +89,9 @@ export async function createLiquidacion(req, res) {
         :aguinaldo_proporcional,
         :bono14_proporcional,
         :liquidacion,
-        :fecha_registro,
+        TO_DATE(:fecha_registro, 'YYYY-MM-DD'),
         :emp_id,
-        :fecha_salida
+        TO_DATE(:fecha_salida, 'YYYY-MM-DD')
       )
     `;
 
@@ -126,6 +126,7 @@ export async function createLiquidacion(req, res) {
 export async function updateLiquidacion(req, res) {
   try {
     const { id } = req.params;
+
     const {
       fecha_retiro,
       tipo_retiro,
@@ -141,7 +142,7 @@ export async function updateLiquidacion(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_LIQUIDACIONES
+      UPDATE EMP_LIQUIDACIONES
       SET 
         LIQ_FECHA_RETIRO = :fecha_retiro,
         LIQ_TIPO_RETIRO = :tipo_retiro,
@@ -197,7 +198,7 @@ export async function deleteLiquidacion(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_LIQUIDACIONES
+      DELETE FROM EMP_LIQUIDACIONES
       WHERE LIQ_ID = :id
     `;
 

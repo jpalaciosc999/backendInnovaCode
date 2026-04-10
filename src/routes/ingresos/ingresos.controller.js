@@ -5,7 +5,7 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getIngresos(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_INGRESO`;
+    const sql = `SELECT * FROM EMP_INGRESO`;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -25,7 +25,7 @@ export async function getIngresoById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_INGRESO
+      SELECT * FROM EMP_INGRESO
       WHERE TIS_ID = :id
     `;
 
@@ -60,7 +60,7 @@ export async function createIngreso(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_INGRESO (
+      INSERT INTO EMP_INGRESO (
         TIS_ID,
         TIS_CODIGO,
         TIS_NOMBRE,
@@ -69,7 +69,7 @@ export async function createIngreso(req, res) {
         TIS_ES_RECURRENT,
         FECHA_MODIFICACION
       ) VALUES (
-        NOM_INGRESO_SEQ.NEXTVAL,
+        EMP_INGRESO_SEQ.NEXTVAL,
         :codigo,
         :nombre,
         :descripcion,
@@ -113,7 +113,7 @@ export async function updateIngreso(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_INGRESO
+      UPDATE EMP_INGRESO
       SET 
         TIS_CODIGO = :codigo,
         TIS_NOMBRE = :nombre,
@@ -158,7 +158,7 @@ export async function deleteIngreso(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_INGRESO
+      DELETE FROM EMP_INGRESO
       WHERE TIS_ID = :id
     `;
 
