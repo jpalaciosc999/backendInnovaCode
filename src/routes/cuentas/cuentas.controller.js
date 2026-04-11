@@ -4,7 +4,7 @@ export async function getCuentas(req, res) {
   try {
     const sql = `
       SELECT CUE_ID, BAN_NOMBRE, CUE_NUMERO, CUE_TIPO, EMP_ID
-      FROM CUENTA_BANCARIA
+      FROM  EMP_CUENTA_BANCARIA
       ORDER BY CUE_ID
     `;
 
@@ -21,7 +21,7 @@ export async function getCuentaById(req, res) {
 
     const sql = `
       SELECT CUE_ID, BAN_NOMBRE, CUE_NUMERO, CUE_TIPO, EMP_ID
-      FROM CUENTA_BANCARIA
+      FROM  EMP_CUENTA_BANCARIA
       WHERE CUE_ID = :id
     `;
 
@@ -42,11 +42,11 @@ export async function createCuenta(req, res) {
     const { ban_nombre, cue_numero, cue_tipo, emp_id } = req.body;
 
     const sql = `
-      INSERT INTO CUENTA_BANCARIA (
+      INSERT INTO  EMP_CUENTA_BANCARIA (
         CUE_ID, BAN_NOMBRE, CUE_NUMERO, CUE_TIPO, EMP_ID
       )
       VALUES (
-        CUENTA_BANCARIA_SEQ.NEXTVAL, :ban_nombre, :cue_numero, :cue_tipo, :emp_id
+        EMP_CUENTA_BANCARIA_SEQ.NEXTVAL, :ban_nombre, :cue_numero, :cue_tipo, :emp_id
       )
     `;
 
@@ -64,7 +64,7 @@ export async function updateCuenta(req, res) {
     const { ban_nombre, cue_numero, cue_tipo, emp_id } = req.body;
 
     const sql = `
-      UPDATE CUENTA_BANCARIA
+      UPDATE  EMP_CUENTA_BANCARIA
       SET
         BAN_NOMBRE = :ban_nombre,
         CUE_NUMERO = :cue_numero,
@@ -96,7 +96,7 @@ export async function deleteCuenta(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM CUENTA_BANCARIA
+      DELETE FROM  EMP_CUENTA_BANCARIA
       WHERE CUE_ID = :id
     `;
 

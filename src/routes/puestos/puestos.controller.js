@@ -5,7 +5,7 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getPuestos(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_PUESTO`;
+    const sql = `SELECT * FROM EMP_PUESTO`;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -29,8 +29,8 @@ export async function getPuestosConDepartamento(req, res) {
         P.PUE_NOMBRE,
         D.DEP_NOMBRE,
         P.PUE_SALARIO_BASE
-      FROM NOM_PUESTO P
-      INNER JOIN NOM_DEPARTAMENTO D
+      FROM EMP_PUESTO P
+      INNER JOIN EMP_DEPARTAMENTO D
         ON P.DEP_ID = D.DEP_ID
     `;
 
@@ -52,7 +52,7 @@ export async function getPuestoById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_PUESTO
+      SELECT * FROM EMP_PUESTO
       WHERE PUE_ID = :id
     `;
 
@@ -88,7 +88,7 @@ export async function createPuesto(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_PUESTO (
+      INSERT INTO EMP_PUESTO (
         PUE_ID,
         PUE_CODIGO,
         PUE_NOMBRE,
@@ -98,7 +98,7 @@ export async function createPuesto(req, res) {
         PUE_FECHA_CREACION,
         DEP_ID
       ) VALUES (
-        NOM_PUESTO_SEQ.NEXTVAL,
+        EMP_PUESTO_SEQ.NEXTVAL,
         :codigo,
         :nombre,
         :salario_base,
@@ -145,7 +145,7 @@ export async function updatePuesto(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_PUESTO
+      UPDATE EMP_PUESTO
       SET 
         PUE_CODIGO = :codigo,
         PUE_NOMBRE = :nombre,
@@ -192,7 +192,7 @@ export async function deletePuesto(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_PUESTO
+      DELETE FROM EMP_PUESTO
       WHERE PUE_ID = :id
     `;
 

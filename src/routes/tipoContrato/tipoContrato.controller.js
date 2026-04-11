@@ -6,7 +6,7 @@ export async function getTiposContrato(req, res) {
       SELECT
         TIC_ID, TIC_NOMBRE, TIC_NUMERO, TIC_DESCRIPCION,
         TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION, EMP_ID
-      FROM TIPO_CONTRATO
+      FROM EMP_TIPO_CONTRATO
       ORDER BY TIC_ID
     `;
 
@@ -25,7 +25,7 @@ export async function getTipoContratoById(req, res) {
       SELECT
         TIC_ID, TIC_NOMBRE, TIC_NUMERO, TIC_DESCRIPCION,
         TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION, EMP_ID
-      FROM TIPO_CONTRATO
+      FROM EMP_TIPO_CONTRATO
       WHERE TIC_ID = :id
     `;
 
@@ -53,12 +53,12 @@ export async function createTipoContrato(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO TIPO_CONTRATO (
+      INSERT INTO EMP_TIPO_CONTRATO (
         TIC_ID, TIC_NOMBRE, TIC_NUMERO, TIC_DESCRIPCION,
         TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION, EMP_ID
       )
       VALUES (
-        TIPO_CONTRATO_SEQ.NEXTVAL, :tic_nombre, :tic_numero, :tic_descripcion,
+        EMP_TIPO_CONTRATO_SEQ.NEXTVAL, :tic_nombre, :tic_numero, :tic_descripcion,
         :tic_tipo_jornada, TO_DATE(:tic_fecha_modificacion, 'YYYY-MM-DD'), :emp_id
       )
     `;
@@ -91,7 +91,7 @@ export async function updateTipoContrato(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE TIPO_CONTRATO
+      UPDATE EMP_TIPO_CONTRATO
       SET
         TIC_NOMBRE = :tic_nombre,
         TIC_NUMERO = :tic_numero,
@@ -127,7 +127,7 @@ export async function deleteTipoContrato(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM TIPO_CONTRATO
+      DELETE FROM EMP_TIPO_CONTRATO
       WHERE TIC_ID = :id
     `;
 

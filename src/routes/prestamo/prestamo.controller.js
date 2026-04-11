@@ -12,7 +12,7 @@ export async function getPrestamos(req, res) {
         PRE_SALDO_PENDIENTE,
         PRE_FECHA_INICIO,
         PRE_ESTADO
-      FROM NOM_PRESTAMO
+      FROM EMP_PRESTAMO
       ORDER BY PRE_ID
     `;
 
@@ -40,7 +40,7 @@ export async function getPrestamoById(req, res) {
         PRE_SALDO_PENDIENTE,
         PRE_FECHA_INICIO,
         PRE_ESTADO
-      FROM NOM_PRESTAMO
+      FROM EMP_PRESTAMO
       WHERE PRE_ID = :id
     `;
 
@@ -72,7 +72,7 @@ export async function createPrestamo(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_PRESTAMO (
+      INSERT INTO EMP_PRESTAMO (
         PRE_ID,
         PRE_MONTO_TOTAL,
         PRE_INTERES,
@@ -83,7 +83,7 @@ export async function createPrestamo(req, res) {
         PRE_ESTADO
       )
       VALUES (
-        NOM_PRESTAMO_SEQ.NEXTVAL,
+        EMP_PRESTAMO_SEQ.NEXTVAL,
         :pre_monto_total,
         :pre_interes,
         :pre_plazo,
@@ -127,7 +127,7 @@ export async function updatePrestamo(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_PRESTAMO
+      UPDATE EMP_PRESTAMO
       SET
         PRE_MONTO_TOTAL = :pre_monto_total,
         PRE_INTERES = :pre_interes,
@@ -168,7 +168,7 @@ export async function deletePrestamo(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_PRESTAMO
+      DELETE FROM EMP_PRESTAMO
       WHERE PRE_ID = :id
     `;
 

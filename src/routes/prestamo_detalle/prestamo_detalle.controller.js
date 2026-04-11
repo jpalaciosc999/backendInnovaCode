@@ -11,7 +11,7 @@ export async function getPrestamoDetalles(req, res) {
         PDE_SALDO_RESTANTE,
         PDE_ESTADO,
         PRE_ID
-      FROM NOM_PRESTAMO_DETALLE
+      FROM EMP_PRESTAMO_DETALLE
       ORDER BY PDE_ID
     `;
 
@@ -38,7 +38,7 @@ export async function getPrestamoDetalleById(req, res) {
         PDE_SALDO_RESTANTE,
         PDE_ESTADO,
         PRE_ID
-      FROM NOM_PRESTAMO_DETALLE
+      FROM EMP_PRESTAMO_DETALLE
       WHERE PDE_ID = :id
     `;
 
@@ -69,7 +69,7 @@ export async function createPrestamoDetalle(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_PRESTAMO_DETALLE (
+      INSERT INTO EMP_PRESTAMO_DETALLE (
         PDE_ID,
         PDE_NUMERO_CUOTA,
         PDE_FECHA_PAGO,
@@ -79,7 +79,7 @@ export async function createPrestamoDetalle(req, res) {
         PRE_ID
       )
       VALUES (
-        NOM_PRESTAMO_DETALLE_SEQ.NEXTVAL,
+        EMP_PRESTAMO_DETALLE_SEQ.NEXTVAL,
         :pde_numero_cuota,
         TO_DATE(:pde_fecha_pago, 'YYYY-MM-DD'),
         :pde_monto,
@@ -120,7 +120,7 @@ export async function updatePrestamoDetalle(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_PRESTAMO_DETALLE
+      UPDATE EMP_PRESTAMO_DETALLE
       SET
         PDE_NUMERO_CUOTA = :pde_numero_cuota,
         PDE_FECHA_PAGO = TO_DATE(:pde_fecha_pago, 'YYYY-MM-DD'),
@@ -159,7 +159,7 @@ export async function deletePrestamoDetalle(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_PRESTAMO_DETALLE
+      DELETE FROM EMP_PRESTAMO_DETALLE
       WHERE PDE_ID = :id
     `;
 

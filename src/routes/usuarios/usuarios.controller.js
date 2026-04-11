@@ -7,7 +7,7 @@ export async function getUsuarios(req, res) {
   try {
     const sql = `
       SELECT *
-      FROM NOM_USUARIO
+      FROM EMP_USUARIO
     `;
 
     const result = await executeQuery(sql);
@@ -30,7 +30,7 @@ export async function getUsuarioById(req, res) {
 
     const sql = `
       SELECT *
-      FROM NOM_USUARIO
+      FROM EMP_USUARIO
       WHERE USU_ID = :id
     `;
 
@@ -73,7 +73,7 @@ export async function createUsuario(req, res) {
     }
 
     const sql = `
-      INSERT INTO NOM_USUARIO (
+      INSERT INTO EMP_USUARIO (
         USU_ID,
         USU_USERNAME,
         USU_PASSWORD,
@@ -84,7 +84,7 @@ export async function createUsuario(req, res) {
         ROL_ID,
         EMP_ID
       ) VALUES (
-        NOM_USUARIO_SEQ.NEXTVAL,
+        EMP_USUARIO_SEQ.NEXTVAL,
         :username,
         :password,
         :nombre_completo,
@@ -134,7 +134,7 @@ export async function updateUsuario(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_USUARIO
+      UPDATE EMP_USUARIO
       SET 
         USU_USERNAME = :username,
         USU_PASSWORD = :password,
@@ -182,7 +182,7 @@ export async function deleteUsuario(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_USUARIO
+      DELETE FROM EMP_USUARIO
       WHERE USU_ID = :id
     `;
 

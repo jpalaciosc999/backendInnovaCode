@@ -53,7 +53,7 @@ app.use("/puestos", puestosRoutes);
 app.use("/departamentos", departamentosRoutes);
 app.use("/kpi", kpiRoutes);
 app.use("/kpiResultado", kpiResultadoRoutes);
-app.use("/nomina", nominaRoutes);
+app.use("/nominas", nominaRoutes);
 app.use("/nominaDetalle", nominaDetalleRoutes);
 app.use("/prestamo", prestamoRoutes);
 app.use("/prestamoDetalle", prestamoDetalleRoutes);

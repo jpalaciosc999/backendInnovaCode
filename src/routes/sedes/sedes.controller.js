@@ -4,7 +4,7 @@ export async function getSedes(req, res) {
   try {
     const sql = `
       SELECT SED_ID, SED_NOMBRE, SED_TELEFONO, SED_DEPARTAMENTO, SED_MUNICIPIO, SED_ZONA
-      FROM SEDE
+      FROM EMP_SEDE
       ORDER BY SED_ID
     `;
 
@@ -21,7 +21,7 @@ export async function getSedeById(req, res) {
 
     const sql = `
       SELECT SED_ID, SED_NOMBRE, SED_TELEFONO, SED_DEPARTAMENTO, SED_MUNICIPIO, SED_ZONA
-      FROM SEDE
+      FROM EMP_SEDE
       WHERE SED_ID = :id
     `;
 
@@ -42,11 +42,11 @@ export async function createSede(req, res) {
     const { sed_nombre, sed_telefono, sed_departamento, sed_municipio, sed_zona } = req.body;
 
     const sql = `
-      INSERT INTO SEDE (
+      INSERT INTO EMP_SEDE (
         SED_ID, SED_NOMBRE, SED_TELEFONO, SED_DEPARTAMENTO, SED_MUNICIPIO, SED_ZONA
       )
       VALUES (
-        SEDE_SEQ.NEXTVAL, :sed_nombre, :sed_telefono, :sed_departamento, :sed_municipio, :sed_zona
+        EMP_SEDE_SEQ.NEXTVAL, :sed_nombre, :sed_telefono, :sed_departamento, :sed_municipio, :sed_zona
       )
     `;
 
@@ -70,7 +70,7 @@ export async function updateSede(req, res) {
     const { sed_nombre, sed_telefono, sed_departamento, sed_municipio, sed_zona } = req.body;
 
     const sql = `
-      UPDATE SEDE
+      UPDATE EMP_SEDE
       SET
         SED_NOMBRE = :sed_nombre,
         SED_TELEFONO = :sed_telefono,
@@ -104,7 +104,7 @@ export async function deleteSede(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM SEDE
+      DELETE FROM EMP_SEDE
       WHERE SED_ID = :id
     `;
 
