@@ -5,12 +5,23 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getEmpleados(req, res) {
   try {
-    // Cambio de NOM_EMPLEADO a EMP_EMPLEADO e inclusión de FKs
     const sql = `
       SELECT 
-        EMP_ID, EMP_NOMBRE, EMP_APELLIDO, EMP_DPI, EMP_NIT, 
-        EMP_TELEFONO, EMP_FECHA_CONTRATACION, EMP_ESTADO,
-        TIC_ID, CUE_ID, PUE_ID, SED_ID, PRE_ID
+        EMP_ID,
+        EMP_NOMBRE,
+        EMP_APELLIDO,
+        EMP_DPI,
+        EMP_NIT,
+        EMP_TELEFONO,
+        EMP_FECHA_CONTRATACION,
+        EMP_ESTADO,
+        DEP_ID,
+        HOR_ID,
+        TIC_ID,
+        CUE_ID,
+        PUE_ID,
+        SED_ID,
+        PRE_ID
       FROM EMP_EMPLEADO
       ORDER BY EMP_ID
     `;
@@ -33,7 +44,23 @@ export async function getEmpleadoById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM EMP_EMPLEADO
+      SELECT
+        EMP_ID,
+        EMP_NOMBRE,
+        EMP_APELLIDO,
+        EMP_DPI,
+        EMP_NIT,
+        EMP_TELEFONO,
+        EMP_FECHA_CONTRATACION,
+        EMP_ESTADO,
+        DEP_ID,
+        HOR_ID,
+        TIC_ID,
+        CUE_ID,
+        PUE_ID,
+        SED_ID,
+        PRE_ID
+      FROM EMP_EMPLEADO
       WHERE EMP_ID = :id
     `;
 
@@ -58,28 +85,69 @@ export async function getEmpleadoById(req, res) {
 export async function createEmpleado(req, res) {
   try {
     const {
-      emp_nombre, emp_apellido, emp_dpi, emp_nit, emp_telefono,
-      emp_fecha_contratacion, emp_estado,
-      tic_id, cue_id, pue_id, sed_id, pre_id
+      emp_nombre,
+      emp_apellido,
+      emp_dpi,
+      emp_nit,
+      emp_telefono,
+      emp_fecha_contratacion,
+      emp_estado,
+      dep_id,
+      hor_id,
+      tic_id,
+      cue_id,
+      pue_id,
+      sed_id,
+      pre_id
     } = req.body;
 
     const sql = `
       INSERT INTO EMP_EMPLEADO (
-        EMP_ID, EMP_NOMBRE, EMP_APELLIDO, EMP_DPI, EMP_NIT, 
-        EMP_TELEFONO, EMP_FECHA_CONTRATACION, EMP_ESTADO,
-        TIC_ID, CUE_ID, PUE_ID, SED_ID, PRE_ID
+        EMP_ID,
+        EMP_NOMBRE,
+        EMP_APELLIDO,
+        EMP_DPI,
+        EMP_NIT,
+        EMP_TELEFONO,
+        EMP_FECHA_CONTRATACION,
+        EMP_ESTADO,
+        DEP_ID,
+        HOR_ID,
+        TIC_ID,
+        CUE_ID,
+        PUE_ID,
+        SED_ID,
+        PRE_ID
       )
       VALUES (
         EMP_EMPLEADO_SEQ.NEXTVAL,
-        :emp_nombre, :emp_apellido, :emp_dpi, :emp_nit, 
-        :emp_telefono, TO_DATE(:emp_fecha_contratacion, 'YYYY-MM-DD'), :emp_estado,
-        :tic_id, :cue_id, :pue_id, :sed_id, :pre_id
+        :emp_nombre,
+        :emp_apellido,
+        :emp_dpi,
+        :emp_nit,
+        :emp_telefono,
+        TO_DATE(:emp_fecha_contratacion, 'YYYY-MM-DD'),
+        :emp_estado,
+        :dep_id,
+        :hor_id,
+        :tic_id,
+        :cue_id,
+        :pue_id,
+        :sed_id,
+        :pre_id
       )
     `;
 
     await executeQuery(sql, {
-      emp_nombre, emp_apellido, emp_dpi, emp_nit, emp_telefono,
-      emp_fecha_contratacion, emp_estado,
+      emp_nombre,
+      emp_apellido,
+      emp_dpi,
+      emp_nit,
+      emp_telefono,
+      emp_fecha_contratacion,
+      emp_estado,
+      dep_id: dep_id || null,
+      hor_id: hor_id || null,
       tic_id: tic_id || null,
       cue_id: cue_id || null,
       pue_id: pue_id || null,
@@ -103,9 +171,20 @@ export async function updateEmpleado(req, res) {
   try {
     const { id } = req.params;
     const {
-      emp_nombre, emp_apellido, emp_dpi, emp_nit, emp_telefono,
-      emp_fecha_contratacion, emp_estado,
-      tic_id, cue_id, pue_id, sed_id, pre_id
+      emp_nombre,
+      emp_apellido,
+      emp_dpi,
+      emp_nit,
+      emp_telefono,
+      emp_fecha_contratacion,
+      emp_estado,
+      dep_id,
+      hor_id,
+      tic_id,
+      cue_id,
+      pue_id,
+      sed_id,
+      pre_id
     } = req.body;
 
     const sql = `
@@ -118,6 +197,8 @@ export async function updateEmpleado(req, res) {
         EMP_TELEFONO = :emp_telefono,
         EMP_FECHA_CONTRATACION = TO_DATE(:emp_fecha_contratacion, 'YYYY-MM-DD'),
         EMP_ESTADO = :emp_estado,
+        DEP_ID = :dep_id,
+        HOR_ID = :hor_id,
         TIC_ID = :tic_id,
         CUE_ID = :cue_id,
         PUE_ID = :pue_id,
@@ -128,8 +209,15 @@ export async function updateEmpleado(req, res) {
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      emp_nombre, emp_apellido, emp_dpi, emp_nit, emp_telefono,
-      emp_fecha_contratacion, emp_estado,
+      emp_nombre,
+      emp_apellido,
+      emp_dpi,
+      emp_nit,
+      emp_telefono,
+      emp_fecha_contratacion,
+      emp_estado,
+      dep_id: dep_id || null,
+      hor_id: hor_id || null,
       tic_id: tic_id || null,
       cue_id: cue_id || null,
       pue_id: pue_id || null,
@@ -157,7 +245,10 @@ export async function deleteEmpleado(req, res) {
   try {
     const { id } = req.params;
 
-    const sql = `DELETE FROM EMP_EMPLEADO WHERE EMP_ID = :id`;
+    const sql = `
+      DELETE FROM EMP_EMPLEADO
+      WHERE EMP_ID = :id
+    `;
 
     const result = await executeQuery(sql, { id: Number(id) });
 
