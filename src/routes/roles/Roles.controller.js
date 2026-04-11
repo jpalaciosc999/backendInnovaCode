@@ -10,7 +10,7 @@ export async function getRoles(req, res) {
         ROL_NIVEL_ACCESO,
         ROL_ESTADO,
         ROL_FECHA_CREACION
-      FROM NOM_ROLES
+      FROM EMP_ROLES
       ORDER BY ROL_ID
     `;
 
@@ -36,7 +36,7 @@ export async function getRolById(req, res) {
         ROL_NIVEL_ACCESO,
         ROL_ESTADO,
         ROL_FECHA_CREACION
-      FROM NOM_ROLES
+      FROM EMP_ROLES
       WHERE ROL_ID = :id
     `;
 
@@ -66,7 +66,7 @@ export async function createRol(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_ROLES (
+      INSERT INTO EMP_ROLES (
         ROL_ID,
         ROL_NOMBRE,
         ROL_DESCRIPCION,
@@ -75,7 +75,7 @@ export async function createRol(req, res) {
         ROL_FECHA_CREACION
       )
       VALUES (
-        NOM_ROLES_SEQ.NEXTVAL,
+        EMP_ROLES_SEQ.NEXTVAL,
         :rol_nombre,
         :rol_descripcion,
         :rol_nivel_acceso,
@@ -113,7 +113,7 @@ export async function updateRol(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_ROLES
+      UPDATE EMP_ROLES
       SET
         ROL_NOMBRE = :rol_nombre,
         ROL_DESCRIPCION = :rol_descripcion,
@@ -150,7 +150,7 @@ export async function deleteRol(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_ROLES
+      DELETE FROM EMP_ROLES
       WHERE ROL_ID = :id
     `;
 

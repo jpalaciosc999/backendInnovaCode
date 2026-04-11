@@ -7,7 +7,7 @@ export async function getRolPermisos(req, res) {
         RPE_ID,
         PER_ID,
         ROL_ID
-      FROM NOM_ROL_PERMISOS
+      FROM EMP_ROL_PERMISOS
       ORDER BY RPE_ID
     `;
 
@@ -30,7 +30,7 @@ export async function getRolPermisoById(req, res) {
         RPE_ID,
         PER_ID,
         ROL_ID
-      FROM NOM_ROL_PERMISOS
+      FROM EMP_ROL_PERMISOS
       WHERE RPE_ID = :id
     `;
 
@@ -57,13 +57,13 @@ export async function createRolPermiso(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_ROL_PERMISOS (
+      INSERT INTO EMP_ROL_PERMISOS (
         RPE_ID,
         PER_ID,
         ROL_ID
       )
       VALUES (
-        NOM_ROL_PERMISOS_SEQ.NEXTVAL,
+        EMP_ROL_PERMISOS_SEQ.NEXTVAL,
         :per_id,
         :rol_id
       )
@@ -92,7 +92,7 @@ export async function updateRolPermiso(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_ROL_PERMISOS
+      UPDATE EMP_ROL_PERMISOS
       SET
         PER_ID = :per_id,
         ROL_ID = :rol_id
@@ -123,7 +123,7 @@ export async function deleteRolPermiso(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_ROL_PERMISOS
+      DELETE FROM EMP_ROL_PERMISOS
       WHERE RPE_ID = :id
     `;
 

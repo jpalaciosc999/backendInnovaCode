@@ -5,7 +5,7 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getNominas(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_NOMINA`;
+    const sql = `SELECT * FROM EMP_NOMINA`;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -25,7 +25,7 @@ export async function getNominaById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_NOMINA
+      SELECT * FROM EMP_NOMINA
       WHERE NOM_ID = :id
     `;
 
@@ -60,7 +60,7 @@ export async function createNomina(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_NOMINA (
+      INSERT INTO EMP_NOMINA (
         NOM_ID,
         NOM_TOTAL_INGRESOS,
         NOM_TOTAL_DESCUENTO,
@@ -70,7 +70,7 @@ export async function createNomina(req, res) {
         EMP_ID,
         NOM_ESTADO
       ) VALUES (
-        NOM_NOMINA_SEQ.NEXTVAL,
+        EMP_NOMINA_SEQ.NEXTVAL,
         :total_ingresos,
         :total_descuento,
         :salario_liquido,
@@ -116,7 +116,7 @@ export async function updateNomina(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_NOMINA
+      UPDATE EMP_NOMINA
       SET
         NOM_TOTAL_INGRESOS = :total_ingresos,
         NOM_TOTAL_DESCUENTO = :total_descuento,
@@ -160,7 +160,7 @@ export async function deleteNomina(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_NOMINA
+      DELETE FROM EMP_NOMINA
       WHERE NOM_ID = :id
     `;
 

@@ -8,7 +8,7 @@ export async function getPermisos(req, res) {
         PER_NOMBRE_PERMISO,
         PER_MODULO,
         PER_DESCRIPCION
-      FROM NOM_PERMISOS
+      FROM EMP_PERMISOS
       ORDER BY PERMISOS_ID
     `;
 
@@ -32,7 +32,7 @@ export async function getPermisoById(req, res) {
         PER_NOMBRE_PERMISO,
         PER_MODULO,
         PER_DESCRIPCION
-      FROM NOM_PERMISOS
+      FROM EMP_PERMISOS
       WHERE PERMISOS_ID = :id
     `;
 
@@ -60,14 +60,14 @@ export async function createPermiso(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_PERMISOS (
+      INSERT INTO EMP_PERMISOS (
         PERMISOS_ID,
         PER_NOMBRE_PERMISO,
         PER_MODULO,
         PER_DESCRIPCION
       )
       VALUES (
-        NOM_PERMISOS_SEQ.NEXTVAL,
+        EMP_PERMISOS_SEQ.NEXTVAL,
         :per_nombre_permiso,
         :per_modulo,
         :per_descripcion
@@ -99,7 +99,7 @@ export async function updatePermiso(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_PERMISOS
+      UPDATE EMP_PERMISOS
       SET
         PER_NOMBRE_PERMISO = :per_nombre_permiso,
         PER_MODULO = :per_modulo,
@@ -132,7 +132,7 @@ export async function deletePermiso(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_PERMISOS
+      DELETE FROM EMP_PERMISOS
       WHERE PERMISOS_ID = :id
     `;
 

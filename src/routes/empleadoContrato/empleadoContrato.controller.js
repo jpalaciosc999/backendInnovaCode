@@ -6,7 +6,7 @@ export async function getEmpleadoContratos(req, res) {
       SELECT
         TCO_ID, TCO_FECHA_INICIO, TCO_FECHA_FIN,
         TCO_ESTADO, TIC_FECHA_MODIFICACION, TIC_ID
-      FROM EMPLEADO_CONTRATO
+      FROM EMP_EMPLEADO_CONTRATO
       ORDER BY TCO_ID
     `;
 
@@ -25,7 +25,7 @@ export async function getEmpleadoContratoById(req, res) {
       SELECT
         TCO_ID, TCO_FECHA_INICIO, TCO_FECHA_FIN,
         TCO_ESTADO, TIC_FECHA_MODIFICACION, TIC_ID
-      FROM EMPLEADO_CONTRATO
+      FROM EMP_EMPLEADO_CONTRATO
       WHERE TCO_ID = :id
     `;
 
@@ -52,12 +52,12 @@ export async function createEmpleadoContrato(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO EMPLEADO_CONTRATO (
+      INSERT INTO EMP_EMPLEADO_CONTRATO (
         TCO_ID, TCO_FECHA_INICIO, TCO_FECHA_FIN,
         TCO_ESTADO, TIC_FECHA_MODIFICACION, TIC_ID
       )
       VALUES (
-        EMPLEADO_CONTRATO_SEQ.NEXTVAL,
+        EMP_EMPLEADO_CONTRATO_SEQ.NEXTVAL,
         TO_DATE(:tco_fecha_inicio, 'YYYY-MM-DD'),
         TO_DATE(:tco_fecha_fin, 'YYYY-MM-DD'),
         :tco_estado,
@@ -92,7 +92,7 @@ export async function updateEmpleadoContrato(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE EMPLEADO_CONTRATO
+      UPDATE EMP_EMPLEADO_CONTRATO
       SET
         TCO_FECHA_INICIO = TO_DATE(:tco_fecha_inicio, 'YYYY-MM-DD'),
         TCO_FECHA_FIN = TO_DATE(:tco_fecha_fin, 'YYYY-MM-DD'),
@@ -126,7 +126,7 @@ export async function deleteEmpleadoContrato(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM EMPLEADO_CONTRATO
+      DELETE FROM EMP_EMPLEADO_CONTRATO
       WHERE TCO_ID = :id
     `;
 

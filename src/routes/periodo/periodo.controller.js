@@ -5,7 +5,7 @@ import { executeQuery } from "../../config/db.js";
 ======================= */
 export async function getPeriodos(req, res) {
   try {
-    const sql = `SELECT * FROM NOM_PERIODO`;
+    const sql = `SELECT * FROM EMP_PERIODO`;
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -25,7 +25,7 @@ export async function getPeriodoById(req, res) {
     const { id } = req.params;
 
     const sql = `
-      SELECT * FROM NOM_PERIODO
+      SELECT * FROM EMP_PERIODO
       WHERE PER_ID = :id
     `;
 
@@ -59,14 +59,14 @@ export async function createPeriodo(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO NOM_PERIODO (
+      INSERT INTO EMP_PERIODO (
         PER_ID,
         PER_FECHA_INICIO,
         PER_FECHA_FIN,
         PER_FECHA_PAGO,
         PER_ESTADO
       ) VALUES (
-        NOM_PERIODO_SEQ.NEXTVAL,
+        EMP_PERIODO_SEQ.NEXTVAL,
         :fecha_inicio,
         :fecha_fin,
         :fecha_pago,
@@ -106,7 +106,7 @@ export async function updatePeriodo(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE NOM_PERIODO
+      UPDATE EMP_PERIODO
       SET 
         PER_FECHA_INICIO = :fecha_inicio,
         PER_FECHA_FIN = :fecha_fin,
@@ -148,7 +148,7 @@ export async function deletePeriodo(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM NOM_PERIODO
+      DELETE FROM EMP_PERIODO
       WHERE PER_ID = :id
     `;
 

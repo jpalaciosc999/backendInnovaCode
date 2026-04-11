@@ -61,14 +61,13 @@ export async function createLiquidacion(req, res) {
       bono14_proporcional,
       liquidacion,
       fecha_registro,
-      emp_id,
-      fecha_salida
+      emp_id
     } = req.body;
 
     const sql = `
       INSERT INTO EMP_LIQUIDACIONES (
         LIQ_ID,
-        LIQ_FECHA_RETIRO,
+        LIQ_FECHA_SALIDA,
         LIQ_TIPO_RETIRO,
         LIQ_DIAS_TRABAJADO,
         LIQ_INDEMNIZACION,
@@ -77,8 +76,7 @@ export async function createLiquidacion(req, res) {
         LIQ_BONO14_PROPORCIONAL,
         LIQ_LIQUIDACION,
         LIQ_FECHA_REGISTRO,
-        EMP_ID,
-        LIQ_FECHA_SALIDA
+        EMP_ID
       ) VALUES (
         SEQ_LIQUIDACION.NEXTVAL,
         TO_DATE(:fecha_retiro, 'YYYY-MM-DD'),
@@ -90,8 +88,7 @@ export async function createLiquidacion(req, res) {
         :bono14_proporcional,
         :liquidacion,
         TO_DATE(:fecha_registro, 'YYYY-MM-DD'),
-        :emp_id,
-        TO_DATE(:fecha_salida, 'YYYY-MM-DD')
+        :emp_id
       )
     `;
 
@@ -105,8 +102,7 @@ export async function createLiquidacion(req, res) {
       bono14_proporcional,
       liquidacion,
       fecha_registro,
-      emp_id,
-      fecha_salida
+      emp_id
     });
 
     res.status(201).json({
@@ -137,14 +133,13 @@ export async function updateLiquidacion(req, res) {
       bono14_proporcional,
       liquidacion,
       fecha_registro,
-      emp_id,
-      fecha_salida
+      emp_id
     } = req.body;
 
     const sql = `
       UPDATE EMP_LIQUIDACIONES
       SET 
-        LIQ_FECHA_RETIRO = :fecha_retiro,
+        LIQ_FECHA_SALIDA = :fecha_retiro,
         LIQ_TIPO_RETIRO = :tipo_retiro,
         LIQ_DIAS_TRABAJADO = :dias_trabajado,
         LIQ_INDEMNIZACION = :indemnizacion,
@@ -153,8 +148,7 @@ export async function updateLiquidacion(req, res) {
         LIQ_BONO14_PROPORCIONAL = :bono14_proporcional,
         LIQ_LIQUIDACION = :liquidacion,
         LIQ_FECHA_REGISTRO = :fecha_registro,
-        EMP_ID = :emp_id,
-        LIQ_FECHA_SALIDA = :fecha_salida
+        EMP_ID = :emp_id
       WHERE LIQ_ID = :id
     `;
 
@@ -169,8 +163,7 @@ export async function updateLiquidacion(req, res) {
       bono14_proporcional,
       liquidacion,
       fecha_registro,
-      emp_id,
-      fecha_salida
+      emp_id
     });
 
     if (result.rowsAffected === 0) {

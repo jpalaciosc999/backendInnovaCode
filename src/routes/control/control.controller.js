@@ -6,7 +6,7 @@ export async function getControles(req, res) {
       SELECT
         CTL_ID, CTL_FECHA_INICIO, CTL_FECHA_REGRESO, CTL_MOTIVO,
         CTL_HORAS, CTL_DESCRIPCION, CTL_ESTADO, CTL_FECHA_REGISTRO, EMP_ID
-      FROM CONTROL_LABORAL
+      FROM EMP_CONTROL_LABORAL
       ORDER BY CTL_ID
     `;
 
@@ -25,7 +25,7 @@ export async function getControlById(req, res) {
       SELECT
         CTL_ID, CTL_FECHA_INICIO, CTL_FECHA_REGRESO, CTL_MOTIVO,
         CTL_HORAS, CTL_DESCRIPCION, CTL_ESTADO, CTL_FECHA_REGISTRO, EMP_ID
-      FROM CONTROL_LABORAL
+      FROM EMP_CONTROL_LABORAL
       WHERE CTL_ID = :id
     `;
 
@@ -55,12 +55,12 @@ export async function createControl(req, res) {
     } = req.body;
 
     const sql = `
-      INSERT INTO CONTROL_LABORAL (
+      INSERT INTO EMP_CONTROL_LABORAL (
         CTL_ID, CTL_FECHA_INICIO, CTL_FECHA_REGRESO, CTL_MOTIVO,
         CTL_HORAS, CTL_DESCRIPCION, CTL_ESTADO, CTL_FECHA_REGISTRO, EMP_ID
       )
       VALUES (
-        CONTROL_LABORAL_SEQ.NEXTVAL,
+        EMP_CONTROL_LABORAL_SEQ.NEXTVAL,
         TO_DATE(:ctl_fecha_inicio, 'YYYY-MM-DD'),
         TO_DATE(:ctl_fecha_regreso, 'YYYY-MM-DD'),
         :ctl_motivo,
@@ -104,7 +104,7 @@ export async function updateControl(req, res) {
     } = req.body;
 
     const sql = `
-      UPDATE CONTROL_LABORAL
+      UPDATE EMP_CONTROL_LABORAL
       SET
         CTL_FECHA_INICIO = TO_DATE(:ctl_fecha_inicio, 'YYYY-MM-DD'),
         CTL_FECHA_REGRESO = TO_DATE(:ctl_fecha_regreso, 'YYYY-MM-DD'),
@@ -144,7 +144,7 @@ export async function deleteControl(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM CONTROL_LABORAL
+      DELETE FROM EMP_CONTROL_LABORAL
       WHERE CTL_ID = :id
     `;
 

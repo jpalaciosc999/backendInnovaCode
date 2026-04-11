@@ -4,7 +4,7 @@ export async function getUsuarioBitacoras(req, res) {
   try {
     const sql = `
       SELECT USB_ID, USU_ID, BIT_ID
-      FROM USUARIO_BITACORA
+      FROM EMP_USUARIO_BITACORA
       ORDER BY USB_ID
     `;
 
@@ -21,7 +21,7 @@ export async function getUsuarioBitacoraById(req, res) {
 
     const sql = `
       SELECT USB_ID, USU_ID, BIT_ID
-      FROM USUARIO_BITACORA
+      FROM EMP_USUARIO_BITACORA
       WHERE USB_ID = :id
     `;
 
@@ -42,11 +42,11 @@ export async function createUsuarioBitacora(req, res) {
     const { usu_id, bit_id } = req.body;
 
     const sql = `
-      INSERT INTO USUARIO_BITACORA (
+      INSERT INTO EMP_USUARIO_BITACORA (
         USB_ID, USU_ID, BIT_ID
       )
       VALUES (
-        USUARIO_BITACORA_SEQ.NEXTVAL, :usu_id, :bit_id
+        EMP_USUARIO_BITACORA_SEQ.NEXTVAL, :usu_id, :bit_id
       )
     `;
 
@@ -64,7 +64,7 @@ export async function updateUsuarioBitacora(req, res) {
     const { usu_id, bit_id } = req.body;
 
     const sql = `
-      UPDATE USUARIO_BITACORA
+      UPDATE EMP_USUARIO_BITACORA
       SET
         USU_ID = :usu_id,
         BIT_ID = :bit_id
@@ -92,7 +92,7 @@ export async function deleteUsuarioBitacora(req, res) {
     const { id } = req.params;
 
     const sql = `
-      DELETE FROM USUARIO_BITACORA
+      DELETE FROM EMP_USUARIO_BITACORA
       WHERE USB_ID = :id
     `;
 
