@@ -1,5 +1,6 @@
 {
   "name": "backend",
+  "type": "module",
   "version": "1.0.0",
   "description": "Backend con express y Oracle",
   "main": "src/server.js",
