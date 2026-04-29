@@ -4,9 +4,10 @@ import { executeQuery } from "../../config/db.js";
 
 export async function login(req, res) {
   try {
-    const { username, password } = req.body;
+    const { username, correo, password } = req.body;
+    const login = String(username || correo || "").trim();
 
-    if (!username || !password) {
+    if (!login || !password) {
       return res.status(400).json({
         message: "Usuario y contraseña son obligatorios"
       });
@@ -23,10 +24,11 @@ export async function login(req, res) {
         ROL_ID              AS "rol_id",
         EMP_ID              AS "emp_id"
       FROM EMP_USUARIO
-      WHERE USU_USERNAME = :username
+      WHERE LOWER(USU_USERNAME) = LOWER(:login)
+         OR LOWER(USU_CORREO) = LOWER(:login)
     `;
 
-    const result = await executeQuery(sql, { username });
+    const result = await executeQuery(sql, { login });
 
     if (result.rows.length === 0) {
       return res.status(401).json({ message: "Credenciales incorrectas" });
