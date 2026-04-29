@@ -53,6 +53,8 @@ export async function login(req, res) {
     const payload = {
       id: usuario.id,
       username: usuario.username,
+      nombre_completo: usuario.nombre_completo,
+      correo: usuario.correo,
       rol_id: usuario.rol_id,
       emp_id: usuario.emp_id
     };
@@ -83,30 +85,52 @@ export async function login(req, res) {
   }
 }
 
-export async function leerToken(req, res) {
+export async function readToken(req, res) {
   try {
-    const { token } = req.body;
+    const { token } = req.body || {};
 
-    const decodedSinValidar = jwt.decode(token);
-
-    let decodedValidado = null;
-
-    try {
-      decodedValidado = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      decodedValidado = "Token inválido o expirado";
+    if (!token) {
+      return res.status(400).json({
+        message: "Token requerido"
+      });
     }
 
+    // Validar token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Tiempos
+    const fechaExp = new Date(decoded.exp * 1000);
+    const fechaIat = new Date(decoded.iat * 1000);
+    const ahora = new Date();
+
+    const tiempoRestanteSeg = decoded.exp - Math.floor(Date.now() / 1000);
+
+    const minutos = Math.floor(tiempoRestanteSeg / 60);
+    const segundos = tiempoRestanteSeg % 60;
+
     res.json({
-      token,
-      contenido_sin_validar: decodedSinValidar,
-      contenido_validado: decodedValidado
+      valido: true,
+
+      usuario: {
+        id: decoded.id,
+        username: decoded.username,
+        nombre_completo: decoded.nombre_completo,
+        correo: decoded.correo,
+        rol_id: decoded.rol_id,
+        emp_id: decoded.emp_id
+      },
+
+      token_info: {
+        emitido_en: fechaIat.toLocaleString(),
+        expira_en: fechaExp.toLocaleString(),
+        tiempo_restante: `${minutos} min ${segundos} seg`
+      }
     });
 
   } catch (error) {
-    res.status(500).json({
-      message: "Error leyendo token",
-      error: error.message
+    return res.status(401).json({
+      valido: false,
+      message: "Token inválido o expirado"
     });
   }
 }
