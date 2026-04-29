@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 
+import { verificarToken } from "./middlewares/auth.middleware.js";
+
+import authRoutes from "./routes/auth/auth.routes.js";
 import clientesRoutes from "./routes/clientes/clientes.routes.js";
 import permisosRoutes from "./routes/permisos/Permisos.routes.js";
 import rolesRoutes from "./routes/roles/roles.routes.js";
@@ -35,7 +38,9 @@ app.use(cors({
   origin: "http://localhost:5173"
 }));
 
-app.use(express.json());
+app.use(express.json({
+  limit: "1mb"
+}));
 
 app.get("/", (req, res) => {
   res.json({
@@ -70,5 +75,6 @@ app.use("/tipoContrato", tipoContratoRoutes);
 app.use("/empleadoContrato", empleadoContratoRoutes);
 app.use("/marcaje", marcajeRoutes);
 app.use("/horarios", horariosRoutes);
+app.use("/auth", authRoutes);
 
 export default app;
