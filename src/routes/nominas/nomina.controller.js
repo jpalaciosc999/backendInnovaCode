@@ -56,7 +56,8 @@ export async function createNomina(req, res) {
       total_descuento,
       salario_liquido,
       per_id,
-      emp_id
+      emp_id,
+      liq_id
     } = req.body;
 
     const sql = `
@@ -68,6 +69,7 @@ export async function createNomina(req, res) {
         NOM_FECHA_GENERACION,
         PER_ID,
         EMP_ID,
+        LIQ_ID,
         NOM_ESTADO
       ) VALUES (
         EMP_NOMINA_SEQ.NEXTVAL,
@@ -77,6 +79,7 @@ export async function createNomina(req, res) {
         SYSDATE,
         :per_id,
         :emp_id,
+        :liq_id,
         'A'
       )
     `;
@@ -86,7 +89,8 @@ export async function createNomina(req, res) {
       total_descuento,
       salario_liquido,
       per_id,
-      emp_id
+      emp_id,
+      liq_id
     });
 
     res.status(201).json({
@@ -112,6 +116,7 @@ export async function updateNomina(req, res) {
       salario_liquido,
       per_id,
       emp_id,
+      liq_id,
       estado
     } = req.body;
 
@@ -123,6 +128,7 @@ export async function updateNomina(req, res) {
         NOM_SALARIO_LIQUIDO = :salario_liquido,
         PER_ID = :per_id,
         EMP_ID = :emp_id,
+        LIQ_ID = :liq_id,
         NOM_ESTADO = :estado
       WHERE NOM_ID = :id
     `;
@@ -134,6 +140,7 @@ export async function updateNomina(req, res) {
       salario_liquido,
       per_id,
       emp_id,
+      liq_id,
       estado
     });
 
