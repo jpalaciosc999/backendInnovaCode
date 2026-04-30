@@ -3,6 +3,8 @@ import {
   getMarcajes,
   getMarcajeById,
   createMarcaje,
+  registrarMarcaje,
+  getHistorial,
   updateMarcaje,
   deleteMarcaje
 } from "./marcaje.controller.js";
@@ -10,8 +12,12 @@ import {
 const router = Router();
 
 router.get("/", getMarcajes);
+router.get("/historial", getHistorial);
 router.get("/:id", getMarcajeById);
+
 router.post("/", createMarcaje);
+router.post("/registrar", registrarMarcaje);
+
 router.put("/:id", updateMarcaje);
 router.delete("/:id", deleteMarcaje);
 
