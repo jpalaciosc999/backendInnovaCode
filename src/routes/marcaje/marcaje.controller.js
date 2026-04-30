@@ -197,6 +197,14 @@ export async function createMarcaje(req, res) {
   }
 }
 
+export async function registrarMarcaje(req, res) {
+  return createMarcaje(req, res);
+}
+
+export async function getHistorial(req, res) {
+  return getMarcajes(req, res);
+}
+
 /* =======================
    ACTUALIZAR
 ======================= */
