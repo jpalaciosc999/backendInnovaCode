@@ -140,6 +140,33 @@ export async function updateMarcaje(req, res) {
           message: "Solo se pueden autorizar marcajes con diferencia positiva de horas extra"
         });
       }
+
+    res.status(500).json({
+      message: "Error creando marcaje",
+      error: error.message
+    });
+  }
+}
+
+export async function registrarMarcaje(req, res) {
+  return createMarcaje(req, res);
+}
+
+export async function getHistorial(req, res) {
+  return getMarcajes(req, res);
+}
+
+export async function updateMarcaje(req, res) {
+  try {
+    const { id } = req.params;
+    const { fecha, entrada, salida, estado, emp_id } = req.body;
+
+    const minutosTrabajados = calcularMinutosEntreFechas(entrada, salida);
+
+    if (minutosTrabajados <= 0) {
+      return res.status(400).json({
+        message: "La hora de salida debe ser mayor que la hora de entrada"
+      });
     }
 
     const sqlUpdate = `
@@ -155,3 +182,24 @@ export async function updateMarcaje(req, res) {
     res.status(500).json({ message: "Error al actualizar", error: error.message });
   }
 }
+
+export async function deleteMarcaje(req, res) {
+  try {
+    const { id } = req.params;
+
+    const sql = `DELETE FROM EMP_MARCAJE WHERE MAR_ID = :id`;
+    const result = await executeQuery(sql, { id: Number(id) });
+
+    if (result.rowsAffected === 0) {
+      return res.status(404).json({ message: "Marcaje no encontrado" });
+    }
+
+    res.json({ message: "Marcaje eliminado correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error eliminando marcaje",
+      error: error.message
+    });
+  }
+}
+

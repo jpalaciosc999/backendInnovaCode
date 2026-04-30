@@ -1,4 +1,5 @@
 import { executeQuery } from "../../config/db.js";
+import bcrypt from "bcryptjs";
 
 /* =======================
    OBTENER USUARIOS
@@ -62,6 +63,7 @@ export async function getUsuarioById(req, res) {
 export async function createUsuario(req, res) {
   try {
     const { username, password, nombre_completo, correo, estado, rol_id, emp_id } = req.body;
+    const passwordHash = await bcrypt.hash(password, 10);
 
     if (!username || !password || !nombre_completo || !correo) {
       return res.status(400).json({ message: "Campos obligatorios faltantes" });
@@ -83,7 +85,7 @@ export async function createUsuario(req, res) {
     `;
 
     await executeQuery(sql, {
-      username, password, nombre_completo,
+      username, password: passwordHash, nombre_completo,
       correo, estado: estado || "A",
       rol_id, emp_id,
     });
