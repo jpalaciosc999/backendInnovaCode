@@ -1,3 +1,12 @@
+import { Router } from 'express';
+import { registrarMarcaje, getHistorial, updateMarcaje } from './marcaje.controller.js';
+
+const router = Router();
+
+router.post('/registrar', registrarMarcaje);
+router.get('/historial', getHistorial);
+router.put('/:id', updateMarcaje);
+
 import { Router } from "express";
 import {
   getMarcajes,
