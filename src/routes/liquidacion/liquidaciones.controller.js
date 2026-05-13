@@ -1,5 +1,9 @@
 import { executeQuery } from "../../config/db.js";
 
+function normalizeDate(value) {
+  return value === "" || value === undefined ? null : value;
+}
+
 /* =======================
    OBTENER LIQUIDACIONES
 ======================= */
@@ -93,7 +97,7 @@ export async function createLiquidacion(req, res) {
     `;
 
     await executeQuery(sql, {
-      fecha_retiro,
+      fecha_retiro: normalizeDate(fecha_retiro),
       tipo_retiro,
       dias_trabajado,
       indemnizacion,
@@ -101,7 +105,7 @@ export async function createLiquidacion(req, res) {
       aguinaldo_proporcional,
       bono14_proporcional,
       liquidacion,
-      fecha_registro,
+      fecha_registro: normalizeDate(fecha_registro),
       emp_id
     });
 
@@ -139,7 +143,7 @@ export async function updateLiquidacion(req, res) {
     const sql = `
       UPDATE EMP_LIQUIDACIONES
       SET 
-        LIQ_FECHA_SALIDA = :fecha_retiro,
+        LIQ_FECHA_SALIDA = TO_DATE(:fecha_retiro, 'YYYY-MM-DD'),
         LIQ_TIPO_RETIRO = :tipo_retiro,
         LIQ_DIAS_TRABAJADO = :dias_trabajado,
         LIQ_INDEMNIZACION = :indemnizacion,
@@ -147,14 +151,14 @@ export async function updateLiquidacion(req, res) {
         LIQ_AGUINALDO_PROPORCIONAL = :aguinaldo_proporcional,
         LIQ_BONO14_PROPORCIONAL = :bono14_proporcional,
         LIQ_LIQUIDACION = :liquidacion,
-        LIQ_FECHA_REGISTRO = :fecha_registro,
+        LIQ_FECHA_REGISTRO = TO_DATE(:fecha_registro, 'YYYY-MM-DD'),
         EMP_ID = :emp_id
       WHERE LIQ_ID = :id
     `;
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      fecha_retiro,
+      fecha_retiro: normalizeDate(fecha_retiro),
       tipo_retiro,
       dias_trabajado,
       indemnizacion,
@@ -162,7 +166,7 @@ export async function updateLiquidacion(req, res) {
       aguinaldo_proporcional,
       bono14_proporcional,
       liquidacion,
-      fecha_registro,
+      fecha_registro: normalizeDate(fecha_registro),
       emp_id
     });
 

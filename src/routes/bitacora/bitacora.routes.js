@@ -1,18 +1,19 @@
 import { Router } from "express";
 import {
   getBitacora,
-  getBitacoraById,
-  createBitacora,
-  updateBitacora,
-  deleteBitacora
+  getBitacoraById
 } from "./bitacora.controller.js";
+import {
+  requierePermiso,
+  verificarToken
+} from "../../middlewares/auth.middleware.js";
 
 const router = Router();
 
+router.use(verificarToken);
+router.use(requierePermiso("ADMIN", "Ver bitacora"));
+
 router.get("/", getBitacora);
 router.get("/:id", getBitacoraById);
-router.post("/", createBitacora);
-router.put("/:id", updateBitacora);
-router.delete("/:id", deleteBitacora);
 
 export default router;

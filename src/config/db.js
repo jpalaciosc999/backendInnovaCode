@@ -5,6 +5,7 @@ dotenv.config();
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 oracledb.autoCommit = true;
+oracledb.fetchAsString = [oracledb.CLOB];
 
 let pool;
 
@@ -59,6 +60,46 @@ export async function executeQuery(sql, binds = {}, options = {}) {
         await connection.close();
       } catch (closeError) {
         console.error("Error cerrando conexión:", closeError);
+      }
+    }
+  }
+}
+
+export async function executeTransaction(callback) {
+  let connection;
+
+  try {
+    connection = await pool.getConnection();
+
+    const execute = (sql, binds = {}, options = {}) => {
+      return connection.execute(sql, binds, {
+        outFormat: oracledb.OUT_FORMAT_OBJECT,
+        autoCommit: false,
+        ...options
+      });
+    };
+
+    const result = await callback({ connection, execute });
+    await connection.commit();
+
+    return result;
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Error haciendo rollback:", rollbackError);
+      }
+    }
+
+    console.error("Error ejecutando transaccion:", error);
+    throw error;
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (closeError) {
+        console.error("Error cerrando conexiÃ³n:", closeError);
       }
     }
   }

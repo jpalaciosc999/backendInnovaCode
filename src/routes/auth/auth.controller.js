@@ -2,6 +2,25 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { executeQuery } from "../../config/db.js";
 
+async function getPermisosByRol(rolId) {
+  const result = await executeQuery(
+    `
+      SELECT
+        p.PERMISOS_ID,
+        p.PER_NOMBRE_PERMISO,
+        p.PER_MODULO,
+        p.PER_DESCRIPCION
+      FROM EMP_ROL_PERMISOS rp
+      INNER JOIN EMP_PERMISOS p ON p.PERMISOS_ID = rp.PER_ID
+      WHERE rp.ROL_ID = :rol_id
+      ORDER BY p.PER_MODULO, p.PER_NOMBRE_PERMISO
+    `,
+    { rol_id: rolId }
+  );
+
+  return result.rows;
+}
+
 export async function login(req, res) {
   try {
     const { username, correo, password } = req.body;
@@ -52,13 +71,15 @@ export async function login(req, res) {
       return res.status(401).json({ message: "Credenciales incorrectas" });
     }
 
+    const permisos = await getPermisosByRol(usuario.rol_id);
     const payload = {
       id: usuario.id,
       username: usuario.username,
       nombre_completo: usuario.nombre_completo,
       correo: usuario.correo,
       rol_id: usuario.rol_id,
-      emp_id: usuario.emp_id
+      emp_id: usuario.emp_id,
+      permisos
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -75,7 +96,8 @@ export async function login(req, res) {
         nombre_completo: usuario.nombre_completo,
         correo: usuario.correo,
         rol_id: usuario.rol_id,
-        emp_id: usuario.emp_id
+        emp_id: usuario.emp_id,
+        permisos
       }
     });
 
@@ -119,7 +141,8 @@ export async function readToken(req, res) {
         nombre_completo: decoded.nombre_completo,
         correo: decoded.correo,
         rol_id: decoded.rol_id,
-        emp_id: decoded.emp_id
+        emp_id: decoded.emp_id,
+        permisos: decoded.permisos || []
       },
 
       token_info: {

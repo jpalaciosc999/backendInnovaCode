@@ -5,7 +5,7 @@ export async function getTiposContrato(req, res) {
     const sql = `
       SELECT
         TIC_ID, TIC_NOMBRE, TIC_NUMERO, TIC_DESCRIPCION,
-        TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION, EMP_ID
+        TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION
       FROM EMP_TIPO_CONTRATO
       ORDER BY TIC_ID
     `;
@@ -24,7 +24,7 @@ export async function getTipoContratoById(req, res) {
     const sql = `
       SELECT
         TIC_ID, TIC_NOMBRE, TIC_NUMERO, TIC_DESCRIPCION,
-        TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION, EMP_ID
+        TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION
       FROM EMP_TIPO_CONTRATO
       WHERE TIC_ID = :id
     `;
@@ -48,18 +48,17 @@ export async function createTipoContrato(req, res) {
       tic_numero,
       tic_descripcion,
       tic_tipo_jornada,
-      tic_fecha_modificacion,
-      emp_id
+      tic_fecha_modificacion
     } = req.body;
 
     const sql = `
       INSERT INTO EMP_TIPO_CONTRATO (
         TIC_ID, TIC_NOMBRE, TIC_NUMERO, TIC_DESCRIPCION,
-        TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION, EMP_ID
+        TIC_TIPO_JORNADA, TIC_FECHA_MODIFICACION
       )
       VALUES (
-        EMP_TIPO_CONTRATO_SEQ.NEXTVAL, :tic_nombre, :tic_numero, :tic_descripcion,
-        :tic_tipo_jornada, TO_DATE(:tic_fecha_modificacion, 'YYYY-MM-DD'), :emp_id
+        SEQ_TIPO_CONTRATO.NEXTVAL, :tic_nombre, :tic_numero, :tic_descripcion,
+        :tic_tipo_jornada, TO_DATE(:tic_fecha_modificacion, 'YYYY-MM-DD')
       )
     `;
 
@@ -68,8 +67,7 @@ export async function createTipoContrato(req, res) {
       tic_numero,
       tic_descripcion,
       tic_tipo_jornada,
-      tic_fecha_modificacion,
-      emp_id
+      tic_fecha_modificacion
     });
 
     res.status(201).json({ message: "Tipo de contrato creado correctamente" });
@@ -86,8 +84,7 @@ export async function updateTipoContrato(req, res) {
       tic_numero,
       tic_descripcion,
       tic_tipo_jornada,
-      tic_fecha_modificacion,
-      emp_id
+      tic_fecha_modificacion
     } = req.body;
 
     const sql = `
@@ -97,8 +94,7 @@ export async function updateTipoContrato(req, res) {
         TIC_NUMERO = :tic_numero,
         TIC_DESCRIPCION = :tic_descripcion,
         TIC_TIPO_JORNADA = :tic_tipo_jornada,
-        TIC_FECHA_MODIFICACION = TO_DATE(:tic_fecha_modificacion, 'YYYY-MM-DD'),
-        EMP_ID = :emp_id
+        TIC_FECHA_MODIFICACION = TO_DATE(:tic_fecha_modificacion, 'YYYY-MM-DD')
       WHERE TIC_ID = :id
     `;
 
@@ -108,8 +104,7 @@ export async function updateTipoContrato(req, res) {
       tic_numero,
       tic_descripcion,
       tic_tipo_jornada,
-      tic_fecha_modificacion,
-      emp_id
+      tic_fecha_modificacion
     });
 
     if (result.rowsAffected === 0) {
@@ -125,6 +120,21 @@ export async function updateTipoContrato(req, res) {
 export async function deleteTipoContrato(req, res) {
   try {
     const { id } = req.params;
+    const usado = await executeQuery(
+      `
+        SELECT 1
+        FROM EMP_EMPLEADO_CONTRATO
+        WHERE TIC_ID = :id
+          AND ROWNUM = 1
+      `,
+      { id: Number(id) }
+    );
+
+    if (usado.rows.length > 0) {
+      return res.status(409).json({
+        message: "No se puede eliminar el tipo de contrato porque tiene historial asociado"
+      });
+    }
 
     const sql = `
       DELETE FROM EMP_TIPO_CONTRATO

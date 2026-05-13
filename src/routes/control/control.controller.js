@@ -1,11 +1,26 @@
 import { executeQuery } from "../../config/db.js";
 
+function normalizeDate(value) {
+  return value === "" || value === undefined ? null : value;
+}
+
+function normalizeEstado(value) {
+  return typeof value === "string" ? value.trim().toUpperCase() : value;
+}
+
 export async function getControles(req, res) {
   try {
     const sql = `
       SELECT
-        CTL_ID, CTL_FECHA_INICIO, CTL_FECHA_REGRESO, CTL_MOTIVO,
-        CTL_HORAS, CTL_DESCRIPCION, CTL_ESTADO, CTL_FECHA_REGISTRO, EMP_ID
+        CTL_ID,
+        TO_CHAR(CTL_FECHA_INICIO, 'YYYY-MM-DD') AS CTL_FECHA_INICIO,
+        TO_CHAR(CTL_FECHA_REGRESO, 'YYYY-MM-DD') AS CTL_FECHA_REGRESO,
+        CTL_MOTIVO,
+        CTL_HORAS,
+        CTL_DESCRIPCION,
+        CTL_ESTADO,
+        TO_CHAR(CTL_FECHA_REGISTRO, 'YYYY-MM-DD') AS CTL_FECHA_REGISTRO,
+        EMP_ID
       FROM EMP_CONTROL_LABORAL
       ORDER BY CTL_ID
     `;
@@ -23,8 +38,15 @@ export async function getControlById(req, res) {
 
     const sql = `
       SELECT
-        CTL_ID, CTL_FECHA_INICIO, CTL_FECHA_REGRESO, CTL_MOTIVO,
-        CTL_HORAS, CTL_DESCRIPCION, CTL_ESTADO, CTL_FECHA_REGISTRO, EMP_ID
+        CTL_ID,
+        TO_CHAR(CTL_FECHA_INICIO, 'YYYY-MM-DD') AS CTL_FECHA_INICIO,
+        TO_CHAR(CTL_FECHA_REGRESO, 'YYYY-MM-DD') AS CTL_FECHA_REGRESO,
+        CTL_MOTIVO,
+        CTL_HORAS,
+        CTL_DESCRIPCION,
+        CTL_ESTADO,
+        TO_CHAR(CTL_FECHA_REGISTRO, 'YYYY-MM-DD') AS CTL_FECHA_REGISTRO,
+        EMP_ID
       FROM EMP_CONTROL_LABORAL
       WHERE CTL_ID = :id
     `;
@@ -73,13 +95,13 @@ export async function createControl(req, res) {
     `;
 
     await executeQuery(sql, {
-      ctl_fecha_inicio,
-      ctl_fecha_regreso,
+      ctl_fecha_inicio: normalizeDate(ctl_fecha_inicio),
+      ctl_fecha_regreso: normalizeDate(ctl_fecha_regreso),
       ctl_motivo,
       ctl_horas,
       ctl_descripcion,
-      ctl_estado,
-      ctl_fecha_registro,
+      ctl_estado: normalizeEstado(ctl_estado),
+      ctl_fecha_registro: normalizeDate(ctl_fecha_registro),
       emp_id
     });
 
@@ -119,13 +141,13 @@ export async function updateControl(req, res) {
 
     const result = await executeQuery(sql, {
       id: Number(id),
-      ctl_fecha_inicio,
-      ctl_fecha_regreso,
+      ctl_fecha_inicio: normalizeDate(ctl_fecha_inicio),
+      ctl_fecha_regreso: normalizeDate(ctl_fecha_regreso),
       ctl_motivo,
       ctl_horas,
       ctl_descripcion,
-      ctl_estado,
-      ctl_fecha_registro,
+      ctl_estado: normalizeEstado(ctl_estado),
+      ctl_fecha_registro: normalizeDate(ctl_fecha_registro),
       emp_id
     });
 

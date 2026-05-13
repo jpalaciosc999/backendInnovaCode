@@ -5,9 +5,16 @@ import {
   createRol,
   updateRol,
   deleteRol
-} from "./roles.controller.js";
+} from "./Roles.controller.js";
+import {
+  requierePermiso,
+  verificarToken
+} from "../../middlewares/auth.middleware.js";
 
 const router = Router();
+
+router.use(verificarToken);
+router.use(requierePermiso("ADMIN", "Gestionar roles"));
 
 router.get("/", getRoles);
 router.get("/:id", getRolById);
