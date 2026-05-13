@@ -46,7 +46,7 @@ export async function createSede(req, res) {
         SED_ID, SED_NOMBRE, SED_TELEFONO, SED_DEPARTAMENTO, SED_MUNICIPIO, SED_ZONA
       )
       VALUES (
-        EMP_SEDE_SEQ.NEXTVAL, :sed_nombre, :sed_telefono, :sed_departamento, :sed_municipio, :sed_zona
+        SEQ_EMP_SEDE.NEXTVAL, :sed_nombre, :sed_telefono, :sed_departamento, :sed_municipio, :sed_zona
       )
     `;
 

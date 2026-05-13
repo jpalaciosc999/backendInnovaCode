@@ -6,8 +6,15 @@ import {
   updateRolPermiso,
   deleteRolPermiso
 } from "./rol_permisos.controller.js";
+import {
+  requierePermiso,
+  verificarToken
+} from "../../middlewares/auth.middleware.js";
 
 const router = Router();
+
+router.use(verificarToken);
+router.use(requierePermiso("ADMIN", "Gestionar permisos"));
 
 router.get("/", getRolPermisos);
 router.get("/:id", getRolPermisoById);

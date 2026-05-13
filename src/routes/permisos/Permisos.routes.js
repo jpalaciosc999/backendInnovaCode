@@ -5,9 +5,16 @@ import {
   createPermiso,
   updatePermiso,
   deletePermiso
-} from "./permisos.controller.js";
+} from "./Permisos.controller.js";
+import {
+  requierePermiso,
+  verificarToken
+} from "../../middlewares/auth.middleware.js";
 
 const router = Router();
+
+router.use(verificarToken);
+router.use(requierePermiso("ADMIN", "Gestionar permisos"));
 
 router.get("/", getPermisos);
 router.get("/:id", getPermisoById);
