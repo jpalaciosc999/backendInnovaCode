@@ -38,6 +38,203 @@ function hasContractPayload(body) {
   );
 }
 
+const EMPLOYEE_DIRECT_DELETE_DEPENDENCIES = [
+  { table: "EMP_MARCAJE", label: "marcajes" },
+  { table: "EMP_LIQUIDACIONES", label: "liquidaciones" },
+  { table: "EMP_CUENTA_BANCARIA", label: "cuentas bancarias" },
+  { table: "EMP_CONTROL_LABORAL", label: "control laboral" },
+  { table: "EMP_SUSPENSION_IGSS", label: "suspensiones IGSS" },
+  { table: "EMP_KPI_RESULTADO", label: "resultados KPI" }
+];
+
+async function tableHasColumn(execute, tableName, columnName) {
+  const result = await execute(
+    `
+      SELECT COUNT(*) AS TOTAL
+      FROM USER_TAB_COLUMNS
+      WHERE TABLE_NAME = :table_name
+        AND COLUMN_NAME = :column_name
+    `,
+    {
+      table_name: tableName.toUpperCase(),
+      column_name: columnName.toUpperCase()
+    }
+  );
+
+  return Number(result.rows[0]?.TOTAL || 0) > 0;
+}
+
+async function deleteIfColumnExists(execute, tableName, columnName, value, summary, label) {
+  const hasColumn = await tableHasColumn(execute, tableName, columnName);
+
+  if (!hasColumn) {
+    return;
+  }
+
+  const result = await execute(
+    `DELETE FROM ${tableName} WHERE ${columnName} = :value`,
+    { value }
+  );
+
+  const rowsAffected = Number(result.rowsAffected || 0);
+
+  if (rowsAffected > 0) {
+    summary.push(`${label}: ${rowsAffected}`);
+  }
+}
+
+async function updateEmployeeReferenceToNull(execute, empId, columnName) {
+  const hasColumn = await tableHasColumn(execute, "EMP_EMPLEADO", columnName);
+
+  if (!hasColumn) {
+    return;
+  }
+
+  await execute(
+    `UPDATE EMP_EMPLEADO SET ${columnName} = NULL WHERE EMP_ID = :id`,
+    { id: empId }
+  );
+}
+
+async function deletePayrollForEmployee(execute, empId, summary) {
+  const hasNominaEmpId = await tableHasColumn(execute, "EMP_NOMINA", "EMP_ID");
+  const hasDetalleNomId = await tableHasColumn(execute, "EMP_NOMINA_DETALLE", "NOM_ID");
+
+  if (!hasNominaEmpId) {
+    return;
+  }
+
+  if (hasDetalleNomId) {
+    const hasDescuentoDetId = await tableHasColumn(execute, "EMP_NOMINA_DESCUENTO", "DET_ID");
+
+    if (hasDescuentoDetId) {
+      const descuentoResult = await execute(
+        `
+          DELETE FROM EMP_NOMINA_DESCUENTO
+          WHERE DET_ID IN (
+            SELECT d.DET_ID
+            FROM EMP_NOMINA_DETALLE d
+            INNER JOIN EMP_NOMINA n ON n.NOM_ID = d.NOM_ID
+            WHERE n.EMP_ID = :id
+          )
+        `,
+        { id: empId }
+      );
+
+      if (Number(descuentoResult.rowsAffected || 0) > 0) {
+        summary.push(`descuentos de nomina: ${descuentoResult.rowsAffected}`);
+      }
+    }
+
+    const detalleResult = await execute(
+      `
+        DELETE FROM EMP_NOMINA_DETALLE
+        WHERE NOM_ID IN (
+          SELECT NOM_ID
+          FROM EMP_NOMINA
+          WHERE EMP_ID = :id
+        )
+      `,
+      { id: empId }
+    );
+
+    if (Number(detalleResult.rowsAffected || 0) > 0) {
+      summary.push(`detalles de nomina: ${detalleResult.rowsAffected}`);
+    }
+  }
+
+  const nominaResult = await execute(
+    `
+      DELETE FROM EMP_NOMINA
+      WHERE EMP_ID = :id
+    `,
+    { id: empId }
+  );
+
+  if (Number(nominaResult.rowsAffected || 0) > 0) {
+    summary.push(`nominas: ${nominaResult.rowsAffected}`);
+  }
+}
+
+async function deleteLoansForEmployee(execute, empId, summary) {
+  const hasPrestamoEmpId = await tableHasColumn(execute, "EMP_PRESTAMO", "EMP_ID");
+  const hasPrestamoDetallePreId = await tableHasColumn(execute, "EMP_PRESTAMO_DETALLE", "PRE_ID");
+
+  if (!hasPrestamoEmpId) {
+    return;
+  }
+
+  if (hasPrestamoDetallePreId) {
+    const detalleResult = await execute(
+      `
+        DELETE FROM EMP_PRESTAMO_DETALLE
+        WHERE PRE_ID IN (
+          SELECT PRE_ID
+          FROM EMP_PRESTAMO
+          WHERE EMP_ID = :id
+        )
+      `,
+      { id: empId }
+    );
+
+    if (Number(detalleResult.rowsAffected || 0) > 0) {
+      summary.push(`detalles de prestamo: ${detalleResult.rowsAffected}`);
+    }
+  }
+
+  const prestamoResult = await execute(
+    `
+      DELETE FROM EMP_PRESTAMO
+      WHERE EMP_ID = :id
+    `,
+    { id: empId }
+  );
+
+  if (Number(prestamoResult.rowsAffected || 0) > 0) {
+    summary.push(`prestamos: ${prestamoResult.rowsAffected}`);
+  }
+}
+
+async function deleteUsersForEmployee(execute, empId, summary) {
+  const hasUsuarioEmpId = await tableHasColumn(execute, "EMP_USUARIO", "EMP_ID");
+
+  if (!hasUsuarioEmpId) {
+    return;
+  }
+
+  const hasUsuarioBitacoraUsuId = await tableHasColumn(execute, "EMP_USUARIO_BITACORA", "USU_ID");
+
+  if (hasUsuarioBitacoraUsuId) {
+    const usuarioBitacoraResult = await execute(
+      `
+        DELETE FROM EMP_USUARIO_BITACORA
+        WHERE USU_ID IN (
+          SELECT USU_ID
+          FROM EMP_USUARIO
+          WHERE EMP_ID = :id
+        )
+      `,
+      { id: empId }
+    );
+
+    if (Number(usuarioBitacoraResult.rowsAffected || 0) > 0) {
+      summary.push(`relaciones usuario-bitacora: ${usuarioBitacoraResult.rowsAffected}`);
+    }
+  }
+
+  const usuarioResult = await execute(
+    `
+      DELETE FROM EMP_USUARIO
+      WHERE EMP_ID = :id
+    `,
+    { id: empId }
+  );
+
+  if (Number(usuarioResult.rowsAffected || 0) > 0) {
+    summary.push(`usuarios: ${usuarioResult.rowsAffected}`);
+  }
+}
+
 function normalizeContractPayload(body, tipoContrato) {
   const nombreContrato = String(tipoContrato?.TIC_NOMBRE || "").trim().toUpperCase();
   const descripcionContrato = String(tipoContrato?.TIC_DESCRIPCION || "").trim().toUpperCase();
@@ -65,10 +262,6 @@ function normalizeContractPayload(body, tipoContrato) {
 
   if (!payload.tic_id) {
     throw new HttpError(400, "El tipo de contrato es obligatorio para cambiar contrato");
-  }
-
-  if (!payload.motivo) {
-    throw new HttpError(400, "El motivo del cambio de contrato es obligatorio");
   }
 
   if (!payload.is_indefinido && !payload.fecha_fin) {
@@ -165,6 +358,12 @@ async function applyContractChange(execute, empId, payload) {
     return;
   }
 
+  if (currentContract && !payload.motivo) {
+    throw new HttpError(400, "El motivo del cambio de contrato es obligatorio");
+  }
+
+  const contractReason = payload.motivo || "Contrato inicial";
+
   if (currentContract && payload.fecha_inicio <= currentContract.TCO_FECHA_INICIO) {
     throw new HttpError(
       400,
@@ -236,7 +435,7 @@ async function applyContractChange(execute, empId, payload) {
       tic_id: payload.tic_id,
       fecha_inicio: payload.fecha_inicio,
       fecha_fin: payload.fecha_fin,
-      motivo: payload.motivo
+      motivo: contractReason
     }
   );
 }
@@ -543,6 +742,97 @@ export async function deleteEmpleado(req, res) {
     res.status(500).json({
       message: "Error eliminando empleado",
       error: error.message
+    });
+  }
+}
+
+/* =======================
+   ELIMINAR EMPLEADO PERMANENTE
+======================= */
+export async function deleteEmpleadoPermanente(req, res) {
+  try {
+    const { id } = req.params;
+    const empId = Number(id);
+
+    if (!Number.isFinite(empId)) {
+      return res.status(400).json({ message: "ID de empleado invalido" });
+    }
+
+    const deletedSummary = await executeTransaction(async ({ execute }) => {
+      const empleado = await execute(
+        `
+          SELECT EMP_ID
+          FROM EMP_EMPLEADO
+          WHERE EMP_ID = :id
+          FOR UPDATE
+        `,
+        { id: empId }
+      );
+
+      if (empleado.rows.length === 0) {
+        throw new HttpError(404, "Empleado no encontrado");
+      }
+
+      const deletedSummary = [];
+
+      await updateEmployeeReferenceToNull(execute, empId, "CUE_ID");
+      await updateEmployeeReferenceToNull(execute, empId, "PRE_ID");
+
+      await deletePayrollForEmployee(execute, empId, deletedSummary);
+      await deleteLoansForEmployee(execute, empId, deletedSummary);
+      await deleteUsersForEmployee(execute, empId, deletedSummary);
+
+      for (const dependency of EMPLOYEE_DIRECT_DELETE_DEPENDENCIES) {
+        await deleteIfColumnExists(
+          execute,
+          dependency.table,
+          dependency.column || "EMP_ID",
+          empId,
+          deletedSummary,
+          dependency.label
+        );
+      }
+
+      const contratoResult = await execute(
+        `
+          DELETE FROM EMP_EMPLEADO_CONTRATO
+          WHERE EMP_ID = :id
+        `,
+        { id: empId }
+      );
+
+      if (Number(contratoResult.rowsAffected || 0) > 0) {
+        deletedSummary.push(`contratos: ${contratoResult.rowsAffected}`);
+      }
+
+      const result = await execute(
+        `
+          DELETE FROM EMP_EMPLEADO
+          WHERE EMP_ID = :id
+        `,
+        { id: empId }
+      );
+
+      if (result.rowsAffected === 0) {
+        throw new HttpError(404, "Empleado no encontrado");
+      }
+
+      deletedSummary.push("empleado: 1");
+
+      return deletedSummary;
+    });
+
+    res.json({
+      message: "Empleado y registros relacionados eliminados correctamente",
+      eliminados: deletedSummary
+    });
+  } catch (error) {
+    const isIntegrityError = String(error.message || "").includes("ORA-02292");
+    res.status(error.status || (isIntegrityError ? 409 : 500)).json({
+      message: "Error eliminando empleado definitivamente",
+      error: isIntegrityError
+        ? "No se pudo eliminar automaticamente una relacion del empleado. Revisa si existe una tabla relacionada que no esta contemplada en el borrado en cascada."
+        : error.message
     });
   }
 }

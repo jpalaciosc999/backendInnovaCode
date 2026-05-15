@@ -201,7 +201,7 @@ export async function getAdminActividad(req, res) {
 
 export async function getAdminCatalogo(req, res) {
   try {
-    const [roles, permisos, usuarios] = await Promise.all([
+    const [roles, permisosPorModulo, permisos, rolPermisos, usuarios] = await Promise.all([
       executeQuery(`
         SELECT
           r.ROL_ID,
@@ -232,12 +232,41 @@ export async function getAdminCatalogo(req, res) {
       `),
       executeQuery(`
         SELECT
+          PERMISOS_ID,
+          PER_NOMBRE_PERMISO,
+          PER_MODULO,
+          PER_DESCRIPCION
+        FROM EMP_PERMISOS
+        ORDER BY PER_MODULO, PER_NOMBRE_PERMISO
+      `),
+      executeQuery(`
+        SELECT
+          rp.RPE_ID,
+          rp.PER_ID,
+          rp.ROL_ID,
+          r.ROL_NOMBRE,
+          r.ROL_NIVEL_ACCESO,
+          p.PER_NOMBRE_PERMISO,
+          p.PER_MODULO,
+          p.PER_DESCRIPCION
+        FROM EMP_ROL_PERMISOS rp
+        LEFT JOIN EMP_ROLES r ON r.ROL_ID = rp.ROL_ID
+        LEFT JOIN EMP_PERMISOS p ON p.PERMISOS_ID = rp.PER_ID
+        ORDER BY r.ROL_NIVEL_ACCESO, r.ROL_NOMBRE, p.PER_MODULO, p.PER_NOMBRE_PERMISO
+      `),
+      executeQuery(`
+        SELECT
           u.USU_ID,
           u.USU_USERNAME,
           u.USU_NOMBRE_COMPLETO,
           u.USU_CORREO,
           u.USU_ESTADO,
+          u.ROL_ID,
+          u.ROL_ID AS "rol_id",
+          u.EMP_ID,
+          u.EMP_ID AS "emp_id",
           r.ROL_NOMBRE,
+          r.ROL_NIVEL_ACCESO,
           e.EMP_NOMBRE || ' ' || e.EMP_APELLIDO AS EMPLEADO
         FROM EMP_USUARIO u
         LEFT JOIN EMP_ROLES r ON r.ROL_ID = u.ROL_ID
@@ -248,7 +277,9 @@ export async function getAdminCatalogo(req, res) {
 
     res.json({
       roles: roles.rows,
-      permisos_por_modulo: permisos.rows,
+      permisos_por_modulo: permisosPorModulo.rows,
+      permisos: permisos.rows,
+      rolPermisos: rolPermisos.rows,
       usuarios: usuarios.rows
     });
   } catch (error) {

@@ -91,6 +91,32 @@ async function countUsuariosActivosRol(rolId) {
   return Number(result.rows[0]?.TOTAL || 0);
 }
 
+async function countUsuariosRol(rolId) {
+  const result = await executeQuery(
+    `
+      SELECT COUNT(*) AS TOTAL
+      FROM EMP_USUARIO
+      WHERE ROL_ID = :id
+    `,
+    { id: rolId }
+  );
+
+  return Number(result.rows[0]?.TOTAL || 0);
+}
+
+async function countPermisosRol(rolId) {
+  const result = await executeQuery(
+    `
+      SELECT COUNT(*) AS TOTAL
+      FROM EMP_ROL_PERMISOS
+      WHERE ROL_ID = :id
+    `,
+    { id: rolId }
+  );
+
+  return Number(result.rows[0]?.TOTAL || 0);
+}
+
 export async function getRoles(req, res) {
   try {
     const sql = `
@@ -392,6 +418,88 @@ export async function deleteRol(req, res) {
   } catch (error) {
     res.status(error.status || 500).json({
       message: "Error eliminando rol",
+      error: error.message
+    });
+  }
+}
+
+export async function deleteRolPermanente(req, res) {
+  try {
+    const { id } = req.params;
+    const rolId = getParamId(id);
+
+    if (!rolId) {
+      return res.status(400).json({ message: "El id del rol debe ser numerico" });
+    }
+
+    const rolAnterior = await getRolSnapshot(rolId);
+
+    if (!rolAnterior) {
+      return res.status(404).json({ message: "Rol no encontrado" });
+    }
+
+    if (isCurrentRole(req, rolId)) {
+      return res.status(403).json({
+        message: "No puede eliminar el rol con el que esta autenticado"
+      });
+    }
+
+    if (!canManageRoleLevel(req, rolAnterior.ROL_NIVEL_ACCESO)) {
+      return res.status(403).json({
+        message: "No puede eliminar roles de nivel igual o superior al suyo"
+      });
+    }
+
+    if (await countUsuariosRol(rolId) > 0) {
+      return res.status(409).json({
+        message: "No se puede eliminar el rol porque tiene usuarios asociados"
+      });
+    }
+
+    const permisosAsignados = await countPermisosRol(rolId);
+
+    const deleteRolPermisosSql = `
+      DELETE FROM EMP_ROL_PERMISOS
+      WHERE ROL_ID = :id
+    `;
+
+    const deleteRolSql = `
+      DELETE FROM EMP_ROLES
+      WHERE ROL_ID = :id
+    `;
+
+    await executeTransaction(async ({ execute }) => {
+      if (permisosAsignados > 0) {
+        await execute(deleteRolPermisosSql, { id: rolId });
+      }
+
+      const result = await execute(deleteRolSql, { id: rolId });
+
+      if (result.rowsAffected === 0) {
+        const error = new Error("Rol no encontrado");
+        error.status = 404;
+        throw error;
+      }
+
+      await registrarBitacora(req, {
+        accion: "DELETE",
+        tabla: "EMP_ROLES",
+        registroId: rolId,
+        descripcion: `Rol eliminado definitivamente. Permisos retirados: ${permisosAsignados}`,
+        valorAnterior: {
+          ...rolAnterior,
+          permisosAsignados
+        }
+      }, execute);
+    });
+
+    res.json({
+      message: "Rol eliminado definitivamente",
+      permisos_retirados: permisosAsignados
+    });
+  } catch (error) {
+    res.status(error.status || 500).json({
+      message: "Error eliminando rol definitivamente",
       error: error.message
     });
   }

@@ -43,6 +43,21 @@ function getParamId(value) {
   return Number.isFinite(id) ? id : null;
 }
 
+function handleUsuarioDbError(res, error, defaultMessage) {
+  const message = String(error?.message || "");
+
+  if (message.includes("FK_USUARIO_EMPLEADO") || message.includes("ORA-02291")) {
+    return res.status(400).json({
+      message: "El empleado seleccionado no existe. Selecciona un empleado valido antes de guardar el usuario."
+    });
+  }
+
+  return res.status(error.status || 500).json({
+    message: defaultMessage,
+    error: error.message
+  });
+}
+
 async function existeRol(rolId) {
   return Boolean(await getRolActivo(rolId));
 }
@@ -340,7 +355,7 @@ export async function createUsuario(req, res) {
 
     res.status(201).json({ message: "Usuario creado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error creando usuario", error: error.message });
+    handleUsuarioDbError(res, error, "Error creando usuario");
   }
 }
 
@@ -462,7 +477,7 @@ export async function updateUsuario(req, res) {
 
     res.json({ message: "Usuario actualizado correctamente" });
   } catch (error) {
-    res.status(error.status || 500).json({ message: "Error actualizando usuario", error: error.message });
+    handleUsuarioDbError(res, error, "Error actualizando usuario");
   }
 }
 
@@ -522,6 +537,74 @@ export async function deleteUsuario(req, res) {
 
     res.json({ message: "Usuario inactivado correctamente" });
   } catch (error) {
-    res.status(error.status || 500).json({ message: "Error eliminando usuario", error: error.message });
+    handleUsuarioDbError(res, error, "Error eliminando usuario");
+  }
+}
+
+/* =======================
+   ELIMINAR USUARIO DEFINITIVO
+======================= */
+export async function deleteUsuarioPermanente(req, res) {
+  try {
+    const { id } = req.params;
+    const usuarioId = getParamId(id);
+
+    if (!usuarioId) {
+      return res.status(400).json({ message: "El id del usuario debe ser numerico" });
+    }
+
+    const usuarioAnterior = await getUsuarioSnapshot(usuarioId);
+
+    if (!usuarioAnterior) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    if (isCurrentUser(req, usuarioId)) {
+      return res.status(403).json({
+        message: "No puede eliminar el usuario con el que tiene la sesion abierta"
+      });
+    }
+
+    if (!canManageRoleLevel(req, usuarioAnterior.ROL_NIVEL_ACCESO)) {
+      return res.status(403).json({
+        message: "No puede eliminar usuarios con rol de nivel igual o superior al suyo"
+      });
+    }
+
+    await executeTransaction(async ({ execute }) => {
+      await execute(
+        `
+          DELETE FROM EMP_USUARIO_BITACORA
+          WHERE USU_ID = :id
+        `,
+        { id: usuarioId }
+      );
+
+      const result = await execute(
+        `
+          DELETE FROM EMP_USUARIO
+          WHERE USU_ID = :id
+        `,
+        { id: usuarioId }
+      );
+
+      if (result.rowsAffected === 0) {
+        const error = new Error("Usuario no encontrado");
+        error.status = 404;
+        throw error;
+      }
+
+      await registrarBitacora(req, {
+        accion: "DELETE",
+        tabla: "EMP_USUARIO",
+        registroId: usuarioId,
+        descripcion: "Usuario eliminado definitivamente",
+        valorAnterior: sanitizeUsuarioAudit(usuarioAnterior)
+      }, execute);
+    });
+
+    res.json({ message: "Usuario eliminado definitivamente" });
+  } catch (error) {
+    handleUsuarioDbError(res, error, "Error eliminando usuario definitivamente");
   }
 }

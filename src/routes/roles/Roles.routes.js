@@ -4,7 +4,8 @@ import {
   getRolById,
   createRol,
   updateRol,
-  deleteRol
+  deleteRol,
+  deleteRolPermanente
 } from "./Roles.controller.js";
 import {
   requierePermiso,
@@ -20,6 +21,7 @@ router.get("/", getRoles);
 router.get("/:id", getRolById);
 router.post("/", createRol);
 router.put("/:id", updateRol);
+router.delete("/:id/permanente", deleteRolPermanente);
 router.delete("/:id", deleteRol);
 
 export default router;

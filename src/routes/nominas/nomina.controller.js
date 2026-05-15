@@ -1,5 +1,18 @@
 import { executeQuery } from "../../config/db.js";
 
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function toNumberOrNull(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function normalizeEstado(value) {
+  return String(value || "B").trim().toUpperCase();
+}
+
 /* =======================
    OBTENER NOMINAS
 ======================= */
@@ -53,11 +66,35 @@ export async function createNomina(req, res) {
   try {
     const {
       total_ingresos,
+      nom_total_ingresos,
       total_descuento,
+      nom_total_descuento,
       salario_liquido,
+      nom_salario_liquido,
       per_id,
-      emp_id
+      periodo_id,
+      emp_id,
+      empleado_id,
+      liq_id,
+      estado,
+      nom_estado
     } = req.body;
+
+    const payload = {
+      total_ingresos: toNumberOrNull(firstDefined(total_ingresos, nom_total_ingresos)),
+      total_descuento: toNumberOrNull(firstDefined(total_descuento, nom_total_descuento)),
+      salario_liquido: toNumberOrNull(firstDefined(salario_liquido, nom_salario_liquido)),
+      per_id: toNumberOrNull(firstDefined(per_id, periodo_id)),
+      emp_id: toNumberOrNull(firstDefined(emp_id, empleado_id)),
+      liq_id: toNumberOrNull(liq_id),
+      estado: normalizeEstado(firstDefined(estado, nom_estado))
+    };
+
+    if (!payload.emp_id) {
+      return res.status(400).json({
+        message: "El empleado es obligatorio"
+      });
+    }
 
     const sql = `
       INSERT INTO EMP_NOMINA (
@@ -68,26 +105,22 @@ export async function createNomina(req, res) {
         NOM_FECHA_GENERACION,
         PER_ID,
         EMP_ID,
+        LIQ_ID,
         NOM_ESTADO
       ) VALUES (
-        EMP_NOMINA_SEQ.NEXTVAL,
+        SEQ_EMP_NOMINA.NEXTVAL,
         :total_ingresos,
         :total_descuento,
         :salario_liquido,
         SYSDATE,
         :per_id,
         :emp_id,
-        'A'
+        :liq_id,
+        :estado
       )
     `;
 
-    await executeQuery(sql, {
-      total_ingresos,
-      total_descuento,
-      salario_liquido,
-      per_id,
-      emp_id
-    });
+    await executeQuery(sql, payload);
 
     res.status(201).json({
       message: "Nomina creada correctamente"
@@ -108,12 +141,36 @@ export async function updateNomina(req, res) {
     const { id } = req.params;
     const {
       total_ingresos,
+      nom_total_ingresos,
       total_descuento,
+      nom_total_descuento,
       salario_liquido,
+      nom_salario_liquido,
       per_id,
+      periodo_id,
       emp_id,
-      estado
+      empleado_id,
+      liq_id,
+      estado,
+      nom_estado
     } = req.body;
+
+    const payload = {
+      id: Number(id),
+      total_ingresos: toNumberOrNull(firstDefined(total_ingresos, nom_total_ingresos)),
+      total_descuento: toNumberOrNull(firstDefined(total_descuento, nom_total_descuento)),
+      salario_liquido: toNumberOrNull(firstDefined(salario_liquido, nom_salario_liquido)),
+      per_id: toNumberOrNull(firstDefined(per_id, periodo_id)),
+      emp_id: toNumberOrNull(firstDefined(emp_id, empleado_id)),
+      liq_id: toNumberOrNull(liq_id),
+      estado: normalizeEstado(firstDefined(estado, nom_estado))
+    };
+
+    if (!payload.emp_id) {
+      return res.status(400).json({
+        message: "El empleado es obligatorio"
+      });
+    }
 
     const sql = `
       UPDATE EMP_NOMINA
@@ -123,19 +180,12 @@ export async function updateNomina(req, res) {
         NOM_SALARIO_LIQUIDO = :salario_liquido,
         PER_ID = :per_id,
         EMP_ID = :emp_id,
+        LIQ_ID = :liq_id,
         NOM_ESTADO = :estado
       WHERE NOM_ID = :id
     `;
 
-    const result = await executeQuery(sql, {
-      id: Number(id),
-      total_ingresos,
-      total_descuento,
-      salario_liquido,
-      per_id,
-      emp_id,
-      estado
-    });
+    const result = await executeQuery(sql, payload);
 
     if (result.rowsAffected === 0) {
       return res.status(404).json({

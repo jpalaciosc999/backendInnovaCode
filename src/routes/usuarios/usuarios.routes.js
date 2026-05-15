@@ -4,7 +4,8 @@ import {
   getUsuarioById,
   createUsuario,
   updateUsuario,
-  deleteUsuario
+  deleteUsuario,
+  deleteUsuarioPermanente
 } from "./usuarios.controller.js";
 import {
   requierePermiso,
@@ -20,6 +21,7 @@ router.get("/", getUsuarios);
 router.get("/:id", getUsuarioById);
 router.post("/", createUsuario);
 router.put("/:id", updateUsuario);
+router.delete("/:id/permanente", deleteUsuarioPermanente);
 router.delete("/:id", deleteUsuario);
 
 export default router;

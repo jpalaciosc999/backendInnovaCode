@@ -21,6 +21,45 @@ async function getPermisosByRol(rolId) {
   return result.rows;
 }
 
+async function getUsuarioVigenteById(usuarioId) {
+  const result = await executeQuery(
+    `
+      SELECT
+        u.USU_ID              AS "id",
+        u.USU_USERNAME        AS "username",
+        u.USU_PASSWORD        AS "password",
+        u.USU_NOMBRE_COMPLETO AS "nombre_completo",
+        u.USU_CORREO          AS "correo",
+        u.USU_ESTADO          AS "estado",
+        u.ROL_ID              AS "rol_id",
+        u.EMP_ID              AS "emp_id",
+        r.ROL_NOMBRE          AS "rol_nombre",
+        r.ROL_NIVEL_ACCESO    AS "rol_nivel_acceso",
+        r.ROL_ESTADO          AS "rol_estado"
+      FROM EMP_USUARIO u
+      LEFT JOIN EMP_ROLES r ON r.ROL_ID = u.ROL_ID
+      WHERE u.USU_ID = :usuario_id
+    `,
+    { usuario_id: usuarioId }
+  );
+
+  return result.rows[0] || null;
+}
+
+function createSessionPayload(usuario, permisos) {
+  return {
+    id: usuario.id,
+    username: usuario.username,
+    nombre_completo: usuario.nombre_completo,
+    correo: usuario.correo,
+    rol_id: usuario.rol_id,
+    rol_nombre: usuario.rol_nombre,
+    rol_nivel_acceso: usuario.rol_nivel_acceso,
+    emp_id: usuario.emp_id,
+    permisos
+  };
+}
+
 export async function login(req, res) {
   try {
     const { username, correo, password } = req.body;
@@ -34,17 +73,21 @@ export async function login(req, res) {
 
     const sql = `
       SELECT
-        USU_ID              AS "id",
-        USU_USERNAME        AS "username",
-        USU_PASSWORD        AS "password",
-        USU_NOMBRE_COMPLETO AS "nombre_completo",
-        USU_CORREO          AS "correo",
-        USU_ESTADO          AS "estado",
-        ROL_ID              AS "rol_id",
-        EMP_ID              AS "emp_id"
-      FROM EMP_USUARIO
-      WHERE LOWER(USU_USERNAME) = LOWER(:login)
-         OR LOWER(USU_CORREO) = LOWER(:login)
+        u.USU_ID              AS "id",
+        u.USU_USERNAME        AS "username",
+        u.USU_PASSWORD        AS "password",
+        u.USU_NOMBRE_COMPLETO AS "nombre_completo",
+        u.USU_CORREO          AS "correo",
+        u.USU_ESTADO          AS "estado",
+        u.ROL_ID              AS "rol_id",
+        u.EMP_ID              AS "emp_id",
+        r.ROL_NOMBRE          AS "rol_nombre",
+        r.ROL_NIVEL_ACCESO    AS "rol_nivel_acceso",
+        r.ROL_ESTADO          AS "rol_estado"
+      FROM EMP_USUARIO u
+      LEFT JOIN EMP_ROLES r ON r.ROL_ID = u.ROL_ID
+      WHERE LOWER(u.USU_USERNAME) = LOWER(:login)
+         OR LOWER(u.USU_CORREO) = LOWER(:login)
     `;
 
     const result = await executeQuery(sql, { login });
@@ -55,7 +98,7 @@ export async function login(req, res) {
 
     const usuario = result.rows[0];
 
-    if (usuario.estado !== "A") {
+    if (usuario.estado !== "A" || usuario.rol_estado !== "A") {
       return res.status(403).json({ message: "Usuario inactivo" });
     }
 
@@ -72,15 +115,7 @@ export async function login(req, res) {
     }
 
     const permisos = await getPermisosByRol(usuario.rol_id);
-    const payload = {
-      id: usuario.id,
-      username: usuario.username,
-      nombre_completo: usuario.nombre_completo,
-      correo: usuario.correo,
-      rol_id: usuario.rol_id,
-      emp_id: usuario.emp_id,
-      permisos
-    };
+    const payload = createSessionPayload(usuario, permisos);
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || "2h"
@@ -91,13 +126,7 @@ export async function login(req, res) {
       token,
       expiresIn: process.env.JWT_EXPIRES_IN || "2h",
       usuario: {
-        id: usuario.id,
-        username: usuario.username,
-        nombre_completo: usuario.nombre_completo,
-        correo: usuario.correo,
-        rol_id: usuario.rol_id,
-        emp_id: usuario.emp_id,
-        permisos
+        ...payload
       }
     });
 
@@ -119,32 +148,36 @@ export async function readToken(req, res) {
       });
     }
 
-    // Validar token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const usuario = await getUsuarioVigenteById(decoded.id);
+
+    if (!usuario || usuario.estado !== "A" || usuario.rol_estado !== "A") {
+      return res.status(403).json({
+        valido: false,
+        message: "Usuario o rol inactivo"
+      });
+    }
+
+    const permisos = await getPermisosByRol(usuario.rol_id);
+    const payload = createSessionPayload(usuario, permisos);
+    const refreshedToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "2h"
+    });
 
     // Tiempos
-    const fechaExp = new Date(decoded.exp * 1000);
-    const fechaIat = new Date(decoded.iat * 1000);
-    const ahora = new Date();
+    const refreshedDecoded = jwt.decode(refreshedToken);
+    const fechaExp = new Date(refreshedDecoded.exp * 1000);
+    const fechaIat = new Date(refreshedDecoded.iat * 1000);
 
-    const tiempoRestanteSeg = decoded.exp - Math.floor(Date.now() / 1000);
+    const tiempoRestanteSeg = refreshedDecoded.exp - Math.floor(Date.now() / 1000);
 
     const minutos = Math.floor(tiempoRestanteSeg / 60);
     const segundos = tiempoRestanteSeg % 60;
 
     res.json({
       valido: true,
-
-      usuario: {
-        id: decoded.id,
-        username: decoded.username,
-        nombre_completo: decoded.nombre_completo,
-        correo: decoded.correo,
-        rol_id: decoded.rol_id,
-        emp_id: decoded.emp_id,
-        permisos: decoded.permisos || []
-      },
-
+      token: refreshedToken,
+      usuario: payload,
       token_info: {
         emitido_en: fechaIat.toLocaleString(),
         expira_en: fechaExp.toLocaleString(),

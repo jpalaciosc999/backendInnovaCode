@@ -4,7 +4,8 @@ import {
   getEmpleadoById,
   createEmpleado,
   updateEmpleado,
-  deleteEmpleado
+  deleteEmpleado,
+  deleteEmpleadoPermanente
 } from "./empleados.controller.js";
 
 const router = Router();
@@ -13,6 +14,7 @@ router.get("/", getEmpleados);
 router.get("/:id", getEmpleadoById);
 router.post("/", createEmpleado);
 router.put("/:id", updateEmpleado);
+router.delete("/:id/permanente", deleteEmpleadoPermanente);
 router.delete("/:id", deleteEmpleado);
 
 export default router;

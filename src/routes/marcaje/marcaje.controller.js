@@ -114,10 +114,15 @@ export async function createMarcaje(req, res) {
 // REGISTRAR ENTRADA O SALIDA AUTOMÁTICA
 export async function registrarMarcaje(req, res) {
   try {
-    const { emp_id } = req.body;
+    const { emp_id, tipo } = req.body;
+    const tipoMarcaje = String(tipo || "auto").trim().toLowerCase();
 
     if (!emp_id) {
       return res.status(400).json({ message: "ID de empleado es requerido" });
+    }
+
+    if (!["auto", "entrada", "salida"].includes(tipoMarcaje)) {
+      return res.status(400).json({ message: "El tipo de marcaje debe ser entrada o salida" });
     }
 
     const sqlCheck = `
@@ -132,6 +137,12 @@ export async function registrarMarcaje(req, res) {
     });
 
     if (checkResult.rows.length === 0) {
+      if (tipoMarcaje === "salida") {
+        return res.status(400).json({
+          message: "Primero debes marcar entrada para registrar la salida"
+        });
+      }
+
       const sqlInsert = `
         INSERT INTO EMP_MARCAJE (
           MAR_ID,
@@ -154,11 +165,21 @@ export async function registrarMarcaje(req, res) {
       });
 
       return res.status(201).json({
-        message: "Entrada registrada con éxito"
+        message: "Entrada registrada con exito",
+        tipo: "entrada",
+        estado: "entrada_registrada"
       });
     }
 
     const registro = checkResult.rows[0];
+
+    if (tipoMarcaje === "entrada") {
+      return res.status(400).json({
+        message: "Ya registraste tu entrada de hoy",
+        tipo: "entrada",
+        estado: registro.MAR_SALIDA ? "jornada_completa" : "entrada_registrada"
+      });
+    }
 
     if (!registro.MAR_SALIDA) {
       const sqlUpdate = `
@@ -172,12 +193,15 @@ export async function registrarMarcaje(req, res) {
       });
 
       return res.json({
-        message: "Salida registrada con éxito"
+        message: "Salida registrada con exito",
+        tipo: "salida",
+        estado: "jornada_completa"
       });
     }
 
     return res.status(400).json({
-      message: "Ya has completado tu jornada de hoy"
+      message: "Ya completaste tu jornada de hoy",
+      estado: "jornada_completa"
     });
   } catch (error) {
     console.error("Error en registrarMarcaje:", error);
