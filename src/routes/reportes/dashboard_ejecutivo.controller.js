@@ -1,4 +1,4 @@
-import { executeQuery } from "../../config/db.js";
+import { executeQuery  } from "../../config/db.js";
 
 const IGSS_PATRONAL_RATE = 0.1267;
 const IGSS_LABORAL_RATE = 0.0483;
@@ -84,7 +84,7 @@ function initials(nombre, apellido) {
 
 async function resolvePeriodo({ periodoId, anio, mes, fechaInicio, fechaFin }) {
   if (periodoId) {
-    const periodoResult = await executeQuery(
+    const periodoResult = await executeDashboardQuery(
       `
         SELECT
           TO_CHAR(PER_FECHA_INICIO, 'YYYY-MM-DD') AS FECHA_INICIO,
@@ -166,6 +166,28 @@ function buildBinds({ reqQuery, periodo }) {
   };
 }
 
+function getBindNamesFromSql(sql) {
+  const matches = [...String(sql).matchAll(/:(\w+)/g)];
+  return [...new Set(matches.map((match) => match[1]))];
+}
+
+function filtrarBinds(sql, binds = {}) {
+  const bindNames = getBindNamesFromSql(sql);
+  const filtered = {};
+
+  for (const name of bindNames) {
+    if (Object.prototype.hasOwnProperty.call(binds, name)) {
+      filtered[name] = binds[name];
+    }
+  }
+
+  return filtered;
+}
+
+async function executeDashboardQuery(sql, binds = {}) {
+  return executeQuery(sql, filtrarBinds(sql, binds));
+}
+
 async function fetchResumenBase(binds) {
   const [
     totalEmpleadosRes,
@@ -178,7 +200,7 @@ async function fetchResumenBase(binds) {
     vacacionesPendRes,
     puntualidadRes
   ] = await Promise.all([
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM EMP_EMPLEADO E
@@ -188,7 +210,7 @@ async function fetchResumenBase(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT NVL(SUM(N.NOM_TOTAL_INGRESOS), 0) AS COSTO
         FROM EMP_NOMINA N
@@ -201,7 +223,7 @@ async function fetchResumenBase(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM EMP_EMPLEADO_CONTRATO C
@@ -215,7 +237,7 @@ async function fetchResumenBase(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM EMP_EMPLEADO E
@@ -226,7 +248,7 @@ async function fetchResumenBase(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM EMP_LIQUIDACIONES L
@@ -239,7 +261,7 @@ async function fetchResumenBase(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM EMP_LIQUIDACIONES L
@@ -252,7 +274,7 @@ async function fetchResumenBase(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT NVL(SUM(NVL(C.CTL_HORAS, 0)), 0) AS TOTAL_HORAS
         FROM EMP_CONTROL_LABORAL C
@@ -265,7 +287,7 @@ async function fetchResumenBase(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT
           COUNT(*) AS REGISTROS,
@@ -283,7 +305,7 @@ async function fetchResumenBase(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         WITH MARCAJES_BASE AS (
           SELECT
@@ -351,7 +373,7 @@ async function fetchResumenBase(binds) {
 }
 
 async function fetchEvolucionPlanilla(binds) {
-  const result = await executeQuery(
+  const result = await executeDashboardQuery(
     `
       WITH MESES AS (
         SELECT
@@ -390,7 +412,7 @@ async function fetchEvolucionPlanilla(binds) {
 }
 
 async function fetchDistribucionDepartamentos(binds) {
-  const result = await executeQuery(
+  const result = await executeDashboardQuery(
     `
       SELECT
         NVL(D.DEP_NOMBRE, 'Sin departamento') AS DEPARTAMENTO,
@@ -414,7 +436,7 @@ async function fetchDistribucionDepartamentos(binds) {
 }
 
 async function fetchRotacionMensual(binds) {
-  const result = await executeQuery(
+  const result = await executeDashboardQuery(
     `
       WITH MESES AS (
         SELECT
@@ -509,7 +531,7 @@ async function fetchObligacionesPeriodo(binds) {
     isrRetenidoRes,
     provisionIngresoRes
   ] = await Promise.all([
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT NVL(SUM(N.NOM_TOTAL_INGRESOS), 0) AS BASE_PLANILLA
         FROM EMP_NOMINA N
@@ -522,7 +544,7 @@ async function fetchObligacionesPeriodo(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT NVL(SUM(DET.DET_MONTO), 0) AS ISR_RETENIDO
         FROM EMP_NOMINA_DETALLE DET
@@ -538,7 +560,7 @@ async function fetchObligacionesPeriodo(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT
           SUM(CASE WHEN UPPER(NVL(I.TIS_NOMBRE, '')) LIKE '%AGUINALDO%' THEN NVL(DET.DET_MONTO, 0) ELSE 0 END) AS AGUINALDO,
@@ -577,7 +599,7 @@ async function fetchObligacionesPeriodo(binds) {
 }
 
 async function fetchTopHorasExtra(binds) {
-  const result = await executeQuery(
+  const result = await executeDashboardQuery(
     `
       WITH HORAS_EXTRA AS (
         SELECT
@@ -642,7 +664,7 @@ async function fetchTopHorasExtra(binds) {
 }
 
 async function fetchDistribucionEstados(binds) {
-  const result = await executeQuery(
+  const result = await executeDashboardQuery(
     `
       SELECT NVL(E.EMP_ESTADO, 'ND') AS ESTADO, COUNT(*) AS TOTAL
       FROM EMP_EMPLEADO E
@@ -663,7 +685,7 @@ async function fetchDistribucionEstados(binds) {
 
 async function fetchLiquidaciones(binds) {
   const [porMotivoRes, porEstadoEmpleadoRes, porEmpleadoRes] = await Promise.all([
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT
           NVL(L.LIQ_TIPO_RETIRO, 'SIN MOTIVO') AS MOTIVO,
@@ -681,7 +703,7 @@ async function fetchLiquidaciones(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT
           NVL(E.EMP_ESTADO, 'ND') AS ESTADO,
@@ -698,7 +720,7 @@ async function fetchLiquidaciones(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT
           E.EMP_NOMBRE,
@@ -758,7 +780,7 @@ async function fetchAlertas(binds) {
     empleadosInactivosRes,
     horasExtraFueraRangoRes
   ] = await Promise.all([
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM EMP_EMPLEADO_CONTRATO C
@@ -772,7 +794,7 @@ async function fetchAlertas(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM EMP_CONTROL_LABORAL C
@@ -788,7 +810,7 @@ async function fetchAlertas(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM EMP_EMPLEADO E
@@ -798,7 +820,7 @@ async function fetchAlertas(binds) {
       `,
       binds
     ),
-    executeQuery(
+    executeDashboardQuery(
       `
         SELECT COUNT(*) AS TOTAL
         FROM (
