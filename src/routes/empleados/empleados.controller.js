@@ -265,6 +265,7 @@ export async function getEmpleados(req, res) {
         e.SED_ID,
         e.PRE_ID,
         p.PUE_SALARIO_BASE AS EMP_SUELDO,
+        TO_CHAR(liq.LIQ_FECHA_SALIDA, 'YYYY-MM-DD') AS EMP_FECHA_LIQUIDACION,
         TO_CHAR(ec.TCO_FECHA_INICIO, 'YYYY-MM-DD') AS EMP_FECHA_INICIO_CONTRATO,
         TO_CHAR(ec.TCO_FECHA_FIN, 'YYYY-MM-DD') AS EMP_FECHA_FIN_CONTRATO,
         ec.TCO_MOTIVO_CAMBIO AS EMP_MOTIVO_CAMBIO_CONTRATO
@@ -273,6 +274,11 @@ export async function getEmpleados(req, res) {
       LEFT JOIN EMP_EMPLEADO_CONTRATO ec
         ON ec.EMP_ID = e.EMP_ID
        AND ec.TCO_ES_ACTUAL = 1
+      LEFT JOIN (
+        SELECT EMP_ID, MAX(LIQ_FECHA_SALIDA) AS LIQ_FECHA_SALIDA
+        FROM EMP_LIQUIDACIONES
+        GROUP BY EMP_ID
+      ) liq ON liq.EMP_ID = e.EMP_ID
       ORDER BY e.EMP_ID
     `;
 
@@ -312,6 +318,7 @@ export async function getEmpleadoById(req, res) {
         e.SED_ID,
         e.PRE_ID,
         p.PUE_SALARIO_BASE AS EMP_SUELDO,
+        TO_CHAR(liq.LIQ_FECHA_SALIDA, 'YYYY-MM-DD') AS EMP_FECHA_LIQUIDACION,
         TO_CHAR(ec.TCO_FECHA_INICIO, 'YYYY-MM-DD') AS EMP_FECHA_INICIO_CONTRATO,
         TO_CHAR(ec.TCO_FECHA_FIN, 'YYYY-MM-DD') AS EMP_FECHA_FIN_CONTRATO,
         ec.TCO_MOTIVO_CAMBIO AS EMP_MOTIVO_CAMBIO_CONTRATO
@@ -320,6 +327,11 @@ export async function getEmpleadoById(req, res) {
       LEFT JOIN EMP_EMPLEADO_CONTRATO ec
         ON ec.EMP_ID = e.EMP_ID
        AND ec.TCO_ES_ACTUAL = 1
+      LEFT JOIN (
+        SELECT EMP_ID, MAX(LIQ_FECHA_SALIDA) AS LIQ_FECHA_SALIDA
+        FROM EMP_LIQUIDACIONES
+        GROUP BY EMP_ID
+      ) liq ON liq.EMP_ID = e.EMP_ID
       WHERE e.EMP_ID = :id
     `;
 

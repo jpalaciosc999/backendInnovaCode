@@ -6,6 +6,14 @@ const toNumber = (value) => {
     : Number(value);
 };
 
+function formatNominaDetalleError(error) {
+  if (String(error.message || "").includes("ORA-02289")) {
+    return "No existe la secuencia de detalle de nomina en Oracle. Ejecuta sql/nomina_sequences.sql.";
+  }
+
+  return error.message;
+}
+
 /* =======================
    OBTENER TODOS
 ======================= */
@@ -79,7 +87,7 @@ export async function createNominaDetalle(req, res) {
     res.status(201).json({ message: "Creado con éxito" });
 
   } catch (error) {
-    res.status(500).json({ message: "Error al crear", error: error.message });
+    res.status(500).json({ message: "Error al crear", error: formatNominaDetalleError(error) });
   }
 }
 
