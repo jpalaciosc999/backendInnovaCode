@@ -33,6 +33,7 @@ import suspensionIgssRoutes from "./routes/suspensionIgss/suspensionIgss.routes.
 import marcajeRoutes from "./routes/marcaje/marcaje.routes.js";
 import horariosRoutes from "./routes/horarios/horarios.routes.js";
 import adminRoutes from "./routes/admin/admin.routes.js";
+import miTienditaRoutes from "./routes/mi_tiendita/mi_tiendita.routes.js";
 
 const app = express();
 
@@ -121,6 +122,7 @@ app.use("/marcajes", marcajeRoutes);
 app.use("/Marcajes", marcajeRoutes);
 app.use("/horarios", horariosRoutes);
 app.use("/admin", adminRoutes);
+app.use("/mi-tiendita", miTienditaRoutes);
 app.use("/auth", authRoutes);
 
 app.use((err, req, res, next) => {
