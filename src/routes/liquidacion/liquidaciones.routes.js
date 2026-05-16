@@ -2,6 +2,7 @@ import express from "express";
 import {
   getLiquidaciones,
   getLiquidacionById,
+  calcularLiquidacion,
   createLiquidacion,
   updateLiquidacion,
   deleteLiquidacion
@@ -10,6 +11,7 @@ import {
 const router = express.Router();
 
 router.get("/", getLiquidaciones);
+router.post("/calcular", calcularLiquidacion);
 router.get("/:id", getLiquidacionById);
 router.post("/", createLiquidacion);
 router.put("/:id", updateLiquidacion);

@@ -4,12 +4,14 @@ import {
   getNominaById,
   createNomina,
   updateNomina,
-  deleteNomina
+  deleteNomina,
+  generarNominas
 } from "./nomina.controller.js";
 
 const router = express.Router();
 
 router.get("/", getNominas);
+router.post("/generar", generarNominas);
 router.get("/:id", getNominaById);
 router.post("/", createNomina);
 router.put("/:id", updateNomina);
