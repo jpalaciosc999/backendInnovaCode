@@ -37,4 +37,7 @@ router.get("/reporte", soloAdminContabilidad, getIgssReporte);
 // Descarga del reporte en PDF listo para presentar al IGSS
 router.get("/reporte/pdf", soloAdminContabilidad, getIgssReportePDF);
 
+// Alias usado por el frontend: /api/reportes/igss/pdf
+router.get("/pdf", soloAdminContabilidad, getIgssReportePDF);
+
 export default router;
