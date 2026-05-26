@@ -40,15 +40,23 @@ function buildIgssQuery(params) {
     SELECT
       E.EMP_ID,
       E.EMP_NOMBRE || ' ' || E.EMP_APELLIDO                              AS EMPLEADO,
+      NVL(E.EMP_DPI, '')                                                  AS EMP_DPI,
+      NVL(E.EMP_NIT, '')                                                  AS EMP_NIT,
+      NVL(E.EMP_TELEFONO, '')                                             AS EMP_TELEFONO,
       UPPER(SUBSTR(E.EMP_NOMBRE, 1, 1)
             || SUBSTR(E.EMP_APELLIDO, 1, 1))                             AS INICIALES,
       PUE.PUE_NOMBRE                                                      AS PUESTO,
-      COALESCE(PUE.PUE_SALARIO_BASE, N.NOM_TOTAL_INGRESOS, 0)            AS SALARIO_BASE,
-      ROUND(COALESCE(PUE.PUE_SALARIO_BASE, N.NOM_TOTAL_INGRESOS, 0) * ${PRATE}, 2)             AS PATRONAL,
-      ROUND(COALESCE(PUE.PUE_SALARIO_BASE, N.NOM_TOTAL_INGRESOS, 0) * ${LRATE},  2)            AS LABORAL,
-      ROUND(COALESCE(PUE.PUE_SALARIO_BASE, N.NOM_TOTAL_INGRESOS, 0) * (${PRATE} + ${LRATE}), 2) AS TOTAL_IGSS,
+      COALESCE(N.NOM_TOTAL_INGRESOS, PUE.PUE_SALARIO_BASE, 0)            AS SALARIO_BASE,
+      ROUND(COALESCE(N.NOM_TOTAL_INGRESOS, PUE.PUE_SALARIO_BASE, 0) * ${PRATE}, 2)             AS PATRONAL,
+      ROUND(COALESCE(N.NOM_TOTAL_INGRESOS, PUE.PUE_SALARIO_BASE, 0) * ${LRATE},  2)            AS LABORAL,
+      ROUND(COALESCE(N.NOM_TOTAL_INGRESOS, PUE.PUE_SALARIO_BASE, 0) * (${PRATE} + ${LRATE}), 2) AS TOTAL_IGSS,
       D.DEP_ID,
       D.DEP_NOMBRE                                                        AS DEPARTAMENTO,
+      NVL(S.SED_NOMBRE, '')                                               AS SEDE,
+      NVL(S.SED_TELEFONO, '')                                             AS SEDE_TELEFONO,
+      NVL(S.SED_DEPARTAMENTO, '')                                         AS SEDE_DEPARTAMENTO,
+      NVL(S.SED_MUNICIPIO, '')                                            AS SEDE_MUNICIPIO,
+      NVL(S.SED_ZONA, '')                                                 AS SEDE_ZONA,
       N.NOM_ID,
       N.NOM_ESTADO                                                        AS ESTADO,
       PER.PER_ID,
@@ -62,6 +70,7 @@ function buildIgssQuery(params) {
     JOIN      EMP_EMPLEADO     E   ON E.EMP_ID   = N.EMP_ID
     LEFT JOIN EMP_PUESTO       PUE ON PUE.PUE_ID = E.PUE_ID
     JOIN      EMP_DEPARTAMENTO D   ON D.DEP_ID   = E.DEP_ID
+    LEFT JOIN EMP_SEDE         S   ON S.SED_ID   = E.SED_ID
     JOIN      EMP_PERIODO      PER ON PER.PER_ID = N.PER_ID
     ${whereClause}
     ORDER BY D.DEP_NOMBRE, E.EMP_APELLIDO, E.EMP_NOMBRE
@@ -134,6 +143,56 @@ function fmt(n) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+}
+
+function cleanText(value, fallback = "") {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+}
+
+function formatDate(value) {
+  if (!value) return "";
+  const text = String(value).slice(0, 10);
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return String(value);
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function getPeriodoParts(fechaInicio) {
+  if (!fechaInicio) {
+    return { mes: "", anio: "" };
+  }
+
+  const [year, month] = String(fechaInicio).slice(0, 10).split("-");
+  const mes = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("es-GT", {
+    month: "long"
+  });
+
+  return {
+    mes: mes.charAt(0).toUpperCase() + mes.slice(1),
+    anio: year
+  };
+}
+
+function getEmployerInfo(req, rows) {
+  const first = rows[0] ?? {};
+  const sedeAddress = [
+    first.SEDE_ZONA ? `Zona ${first.SEDE_ZONA}` : "",
+    first.SEDE_MUNICIPIO,
+    first.SEDE_DEPARTAMENTO
+  ].filter(Boolean).join(", ");
+
+  return {
+    nombre: cleanText(req.query.patronoNombre || process.env.IGSS_PATRONO_NOMBRE, "InnovaTech"),
+    nit: cleanText(req.query.patronoNit || process.env.IGSS_PATRONO_NIT),
+    numeroPatronal: cleanText(req.query.numeroPatronal || process.env.IGSS_NUMERO_PATRONAL),
+    direccionEmpresa: cleanText(req.query.direccionEmpresa || process.env.IGSS_DIRECCION_EMPRESA || sedeAddress),
+    direccionPatrono: cleanText(req.query.direccionPatrono || process.env.IGSS_DIRECCION_PATRONO || sedeAddress),
+    telefono: cleanText(req.query.telefono || process.env.IGSS_TELEFONO || first.SEDE_TELEFONO),
+    apartadoPostal: cleanText(req.query.apartadoPostal || process.env.IGSS_APARTADO_POSTAL),
+    numeroRecibo: cleanText(req.query.numeroRecibo || req.query.recibo || process.env.IGSS_NUMERO_RECIBO),
+    hojaNo: cleanText(req.query.hojaNo || "1")
+  };
 }
 
 function formatPeriodoLabel(fechaInicioStr) {
@@ -250,6 +309,197 @@ export async function getIgssReporte(req, res) {
 // Descarga el reporte IGSS en formato PDF (listo para presentar al IGSS)
 // Query params: periodoId, departamentoId, estado
 // ─────────────────────────────────────────────────────────────────────────────
+function sendIgssPlanillaPdf(req, res, rows, totales, firstRow, periodoLabel) {
+  const doc = new PDFDocument({ margin: 14, size: "A4", layout: "landscape" });
+  const safePeriodo = cleanText(periodoLabel, "igss").replace(/\s+/g, "_");
+  const employer = getEmployerInfo(req, rows);
+  const periodo = getPeriodoParts(firstRow.PERIODO_INICIO);
+  const departamentos = [...new Set(rows.map(r => cleanText(r.DEPARTAMENTO)).filter(Boolean))].join(", ");
+  const sourceRows = rows.length ? rows : [{}];
+  const pages = [];
+
+  for (let i = 0; i < sourceRows.length; i += 16) {
+    pages.push(sourceRows.slice(i, i + 16));
+  }
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="planilla_igss_${safePeriodo}.pdf"`);
+  doc.pipe(res);
+
+  const LEFT = 16;
+  const TOP = 14;
+  const WIDTH = doc.page.width - LEFT * 2;
+  const BLACK = "#000000";
+  const GRAY = "#f3f4f6";
+  const PEACH = "#f5c99b";
+
+  const text = (value, x, y, w, h, opts = {}) => {
+    doc.font(opts.bold ? "Helvetica-Bold" : "Helvetica")
+      .fontSize(opts.size ?? 6)
+      .fillColor(BLACK)
+      .text(cleanText(value), x + 2, y + 2, {
+        width: Math.max(w - 4, 1),
+        height: Math.max(h - 3, 1),
+        align: opts.align ?? "left",
+        ellipsis: true
+      });
+  };
+
+  const cell = (x, y, w, h, value = "", opts = {}) => {
+    if (opts.fill) {
+      doc.save().rect(x, y, w, h).fill(opts.fill).restore();
+    }
+    doc.save().lineWidth(opts.lineWidth ?? 0.6).strokeColor(BLACK).rect(x, y, w, h).stroke().restore();
+    if (value !== null) text(value, x, y, w, h, opts);
+  };
+
+  const field = (label, value, x, y, w, labelW = 92) => {
+    cell(x, y, labelW, 14, label, { size: 5.5, align: "center" });
+    cell(x + labelW, y, w - labelW, 14, value, { size: 6.5, align: "center", bold: true });
+  };
+
+  const money = value => fmt(Number(value ?? 0));
+  const totalTrabajadores = rows.length;
+
+  pages.forEach((workers, pageIndex) => {
+    if (pageIndex > 0) doc.addPage({ size: "A4", layout: "landscape", margin: 14 });
+
+    doc.font("Helvetica-Bold").fontSize(14).fillColor(BLACK)
+      .text("Instituto Guatemalteco de Seguridad Social", LEFT, TOP + 10, { width: WIDTH, align: "center" });
+    doc.fontSize(8).text("PLANILLA DE SEGURIDAD SOCIAL", LEFT, TOP + 29, { width: WIDTH, align: "center" });
+
+    cell(LEFT + WIDTH - 96, TOP, 96, 28, "Formulario DP1-A\nHoja No.", { size: 6 });
+    text(`${pageIndex + 1} de ${pages.length}`, LEFT + WIDTH - 52, TOP + 14, 50, 12, {
+      size: 6,
+      bold: true,
+      align: "center"
+    });
+
+    const y1 = 60;
+    field("1- Correspondiente al mes de", periodo.mes, LEFT, y1, 282, 130);
+    field("de", periodo.anio, LEFT + 282, y1, 78, 20);
+    field("16- No. de Recibo", employer.numeroRecibo, LEFT + WIDTH - 150, y1 - 16, 110, 65);
+    field("2- Por el Periodo de", formatDate(firstRow.PERIODO_INICIO), LEFT + 80, y1 + 18, 260, 94);
+    field("al", formatDate(firstRow.PERIODO_FIN), LEFT + 340, y1 + 18, 130, 20);
+    field("de", periodo.anio, LEFT + 470, y1 + 18, 84, 20);
+    field("3- Nombres de la Empresa", employer.nombre, LEFT, y1 + 36, 390, 120);
+    field("5- Nombres del Patrono o Razon Social", employer.nombre, LEFT + 390, y1 + 36, 260, 140);
+    field("7- No. Patronal", employer.numeroPatronal, LEFT + 650, y1 + 36, WIDTH - 650, 82);
+    field("4- Direccion de la Empresa", employer.direccionEmpresa, LEFT, y1 + 54, 390, 120);
+    field("6- Direccion de Patrono", employer.direccionPatrono, LEFT + 390, y1 + 54, 260, 120);
+    field("Telefono", employer.telefono, LEFT + 650, y1 + 54, 88, 42);
+    field("Apdo. Postal", employer.apartadoPostal, LEFT + 738, y1 + 54, WIDTH - 738, 50);
+
+    cell(LEFT, y1 + 73, WIDTH, 16,
+      `Departamento de la Republica donde laboran los trabajadores reportados en esta Planilla: ${departamentos || "-"}`,
+      { size: 7, bold: true, fill: GRAY }
+    );
+
+    const tableY = y1 + 89;
+    const cols = [24, 96, 365, 112, 26, 26, 62, WIDTH - 711];
+    const headers = [
+      "8- No.",
+      "No. de Afiliacion",
+      "9- Apellidos y Nombres Completos del Trabajador",
+      "10- Salario Total Devengado sin Deducciones",
+      "A",
+      "B",
+      "Fecha",
+      "12- Observaciones"
+    ];
+    let x = LEFT;
+    headers.forEach((header, index) => {
+      cell(x, tableY, cols[index], 24, header, {
+        size: index === 2 ? 6 : 5.4,
+        bold: true,
+        align: "center",
+        fill: GRAY
+      });
+      x += cols[index];
+    });
+
+    for (let i = 0; i < 16; i += 1) {
+      const r = workers[i] ?? {};
+      const y = tableY + 24 + i * 12;
+      const afiliacion = cleanText(r.EMP_AFILIACION_IGSS || r.EMP_DPI || r.EMP_NIT || r.EMP_ID);
+      const values = [
+        rows.length ? pageIndex * 16 + i + 1 : "",
+        afiliacion,
+        r.EMPLEADO,
+        r.SALARIO_BASE != null ? money(r.SALARIO_BASE) : "",
+        "",
+        "",
+        "",
+        r.ESTADO ? `Nomina ${r.ESTADO}` : ""
+      ];
+      x = LEFT;
+      values.forEach((value, index) => {
+        cell(x, y, cols[index], 12, value, {
+          size: index === 2 ? 6 : 5.6,
+          align: index === 3 ? "right" : "left"
+        });
+        x += cols[index];
+      });
+    }
+
+    const totalsY = tableY + 24 + 16 * 12;
+    cell(LEFT, totalsY, cols[0] + cols[1], 20, `13- Total de\nTrabajadores\nNo. ${totalTrabajadores}`, {
+      size: 5.4,
+      bold: true
+    });
+    cell(LEFT + cols[0] + cols[1], totalsY, cols[2], 20,
+      "8- Total de los Salarios Ordinarios y Extraordinarios", { size: 5.8, bold: true }
+    );
+    cell(LEFT + cols[0] + cols[1] + cols[2], totalsY, cols[3], 20, money(totales.totalSalarioBase), {
+      size: 8,
+      bold: true,
+      align: "right"
+    });
+
+    const liquidY = totalsY + 28;
+    cell(LEFT, liquidY, WIDTH, 13, "15- LIQUIDACION", { size: 7, bold: true, align: "center" });
+    const lCols = [145, 150, 150, 150, 95, WIDTH - 690];
+    const lHeaders = ["CONCEPTOS", "CUOTA PATRONAL", "CUOTA TRABAJADOR", "RECARGO POR MORA", "5% ADICIONAL", "TOTAL A PAGAR"];
+    x = LEFT;
+    lHeaders.forEach((header, index) => {
+      cell(x, liquidY + 13, lCols[index], 14, header, { size: 6, bold: true, align: "center", fill: GRAY });
+      x += lCols[index];
+    });
+
+    const liquidRows = [
+      ["IGSS", money(totales.totalPatronal), money(totales.totalLaboral), "0.00", "0.00", money(totales.totalIgss)],
+      ["INTECAP", "0.00", "0.00", "0.00", "0.00", "0.00"],
+      ["IRTRA", "0.00", "0.00", "0.00", "0.00", "0.00"],
+      ["TOTAL", money(totales.totalPatronal), money(totales.totalLaboral), "0.00", "0.00", money(totales.totalIgss)]
+    ];
+    liquidRows.forEach((row, rowIndex) => {
+      x = LEFT;
+      row.forEach((value, index) => {
+        cell(x, liquidY + 27 + rowIndex * 14, lCols[index], 14, value, {
+          size: 6.5,
+          bold: rowIndex === liquidRows.length - 1,
+          align: index === 0 ? "center" : "right"
+        });
+        x += lCols[index];
+      });
+    });
+
+    const oathY = liquidY + 92;
+    cell(LEFT, oathY, WIDTH, 14,
+      "DECLARO BAJO JURAMENTO QUE ESTA PLANILLA INCLUYE A TODOS LOS TRABAJADORES QUE ESTUVIERON A MI SERVICIO DURANTE EL MES ARRIBA INDICADO Y QUE SUS SALARIOS ANOTADOS SON EXACTOS",
+      { size: 4.8, bold: true, align: "center", fill: PEACH }
+    );
+    cell(LEFT, oathY + 28, 370, 28, "(LUGAR Y FECHA)", { size: 6.5, bold: true, align: "center" });
+    cell(LEFT, oathY + 66, 370, 18, "(FIRMA DEL PATRONO O SU REPRESENTANTE LEGAL Y SELLO DE LA EMPRESA)", {
+      size: 5.8,
+      bold: true,
+      align: "center"
+    });
+  });
+
+  doc.end();
+}
+
 export async function getIgssReportePDF(req, res) {
   try {
     const { periodoId, departamentoId, estado } = req.query;
@@ -263,6 +513,9 @@ export async function getIgssReportePDF(req, res) {
 
     const firstRow     = rows[0] ?? {};
     const periodoLabel = formatPeriodoLabel(firstRow.PERIODO_INICIO);
+
+    sendIgssPlanillaPdf(req, res, rows, totales, firstRow, periodoLabel);
+    return;
 
     // ── Inicializar documento PDF ─────────────────────────────────────────
     const doc = new PDFDocument({ margin: 40, size: "A4", layout: "landscape" });
