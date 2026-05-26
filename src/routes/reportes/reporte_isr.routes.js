@@ -24,4 +24,13 @@ router.get("/reporte", soloAutorizados, getIsrReporte);
 // Descarga del reporte en PDF listo para presentar a SAT
 router.get("/reporte/pdf", soloAutorizados, getIsrReportePDF);
 
+// Alias usado por el frontend: /api/reportes/isr/pdf?anioFiscal=2026
+router.get("/pdf", soloAutorizados, (req, res, next) => {
+  if (!req.query.anio && req.query.anioFiscal) {
+    req.query.anio = req.query.anioFiscal;
+  }
+
+  return getIsrReportePDF(req, res, next);
+});
+
 export default router;

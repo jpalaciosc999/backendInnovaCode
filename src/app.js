@@ -129,6 +129,7 @@ app.use("/horarios", horariosRoutes);
 app.use("/admin", adminRoutes);
 app.use("/auth", authRoutes);
 app.use("/api/reportes", reportesRoutes);
+app.use("/reportes", reportesRoutes);
 
 app.use((err, req, res, next) => {
   if (res.headersSent) {
