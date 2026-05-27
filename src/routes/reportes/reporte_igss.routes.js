@@ -4,6 +4,7 @@ import {
   verificarToken
 } from "../../middlewares/auth.middleware.js";
 import {
+  getIgssFacturaPDF,
   getIgssPeriodos,
   getIgssReporte,
   getIgssReportePDF
@@ -39,5 +40,9 @@ router.get("/reporte/pdf", soloAdminContabilidad, getIgssReportePDF);
 
 // Alias usado por el frontend: /api/reportes/igss/pdf
 router.get("/pdf", soloAdminContabilidad, getIgssReportePDF);
+
+// GET /api/reportes/igss/factura/pdf?periodoId=&departamentoId=&estado=&numeroRecibo=
+// Descarga la planilla/factura IGSS oficial.
+router.get("/factura/pdf", soloAdminContabilidad, getIgssFacturaPDF);
 
 export default router;

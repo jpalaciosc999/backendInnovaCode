@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verificarToken, requiereAlgunoPermiso } from "../../middlewares/auth.middleware.js";
-import { getIsrAnios, getIsrReporte, getIsrReportePDF } from "./reporte_isr.controller.js";
+import { getIsrAnios, getIsrConstanciaPDF, getIsrFacturaPDF, getIsrReporte, getIsrReportePDF } from "./reporte_isr.controller.js";
 
 const router = Router();
 
@@ -24,6 +24,10 @@ router.get("/reporte", soloAutorizados, getIsrReporte);
 // Descarga del reporte en PDF listo para presentar a SAT
 router.get("/reporte/pdf", soloAutorizados, getIsrReportePDF);
 
+// GET /api/reportes/isr/constancia/pdf?anio=2026&empleadoId=1
+// Constancia simple de retencion ISR para entregar al trabajador.
+router.get("/constancia/pdf", soloAutorizados, getIsrConstanciaPDF);
+
 // Alias usado por el frontend: /api/reportes/isr/pdf?anioFiscal=2026
 router.get("/pdf", soloAutorizados, (req, res, next) => {
   if (!req.query.anio && req.query.anioFiscal) {
@@ -31,6 +35,15 @@ router.get("/pdf", soloAutorizados, (req, res, next) => {
   }
 
   return getIsrReportePDF(req, res, next);
+});
+
+// Alias formal para descargar el formato tipo SAT-1901.
+router.get("/factura/pdf", soloAutorizados, (req, res, next) => {
+  if (!req.query.anio && req.query.anioFiscal) {
+    req.query.anio = req.query.anioFiscal;
+  }
+
+  return getIsrFacturaPDF(req, res, next);
 });
 
 export default router;
