@@ -9,7 +9,7 @@ const LABORAL_RATE  = 0.0483;
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildIgssQuery(params) {
-  const { periodoId, departamentoId, estado } = params;
+  const { periodoId, departamentoId } = params;
 
   const conditions = [];
   const binds = {};
@@ -24,17 +24,9 @@ function buildIgssQuery(params) {
     binds.departamentoId = Number(departamentoId);
   }
 
-  if (estado && estado !== "Todos") {
-    conditions.push("N.NOM_ESTADO = :estado");
-    binds.estado = estado;
-  }
-
   const whereClause = conditions.length > 0
     ? "WHERE " + conditions.join(" AND ")
     : "";
-
-  const PRATE = PATRONAL_RATE;
-  const LRATE = LABORAL_RATE;
 
   const sql = `
     SELECT
@@ -46,10 +38,8 @@ function buildIgssQuery(params) {
       UPPER(SUBSTR(E.EMP_NOMBRE, 1, 1)
             || SUBSTR(E.EMP_APELLIDO, 1, 1))                             AS INICIALES,
       PUE.PUE_NOMBRE                                                      AS PUESTO,
-      COALESCE(N.NOM_TOTAL_INGRESOS, PUE.PUE_SALARIO_BASE, 0)            AS SALARIO_BASE,
-      ROUND(COALESCE(N.NOM_TOTAL_INGRESOS, PUE.PUE_SALARIO_BASE, 0) * ${PRATE}, 2)             AS PATRONAL,
-      ROUND(COALESCE(N.NOM_TOTAL_INGRESOS, PUE.PUE_SALARIO_BASE, 0) * ${LRATE},  2)            AS LABORAL,
-      ROUND(COALESCE(N.NOM_TOTAL_INGRESOS, PUE.PUE_SALARIO_BASE, 0) * (${PRATE} + ${LRATE}), 2) AS TOTAL_IGSS,
+      COALESCE(PUE.PUE_SALARIO_BASE, 0)                                  AS SALARIO_BASE_MENSUAL,
+      COALESCE(N.NOM_TOTAL_INGRESOS, 0)                                   AS SALARIO_NOMINA,
       D.DEP_ID,
       D.DEP_NOMBRE                                                        AS DEPARTAMENTO,
       NVL(S.SED_NOMBRE, '')                                               AS SEDE,
@@ -62,6 +52,22 @@ function buildIgssQuery(params) {
       PER.PER_ID,
       TO_CHAR(PER.PER_FECHA_INICIO, 'YYYY-MM-DD')                        AS PERIODO_INICIO,
       TO_CHAR(PER.PER_FECHA_FIN,   'YYYY-MM-DD')                         AS PERIODO_FIN,
+      TRUNC(PER.PER_FECHA_FIN) - TRUNC(PER.PER_FECHA_INICIO) + 1          AS DIAS_PERIODO,
+      (
+        SELECT NVL(SUM(
+          GREATEST(
+            0,
+            LEAST(TRUNC(SUS.SUS_FECHA_FIN), TRUNC(PER.PER_FECHA_FIN))
+            - GREATEST(TRUNC(SUS.SUS_FECHA_INICIO), TRUNC(PER.PER_FECHA_INICIO))
+            + 1
+          )
+        ), 0)
+        FROM EMP_SUSPENSION_IGSS SUS
+        WHERE SUS.EMP_ID = E.EMP_ID
+          AND SUS.SUS_ESTADO = 'A'
+          AND TRUNC(SUS.SUS_FECHA_INICIO) <= TRUNC(PER.PER_FECHA_FIN)
+          AND TRUNC(SUS.SUS_FECHA_FIN) >= TRUNC(PER.PER_FECHA_INICIO)
+      )                                                                   AS DIAS_SUSPENDIDOS,
       TO_CHAR(
         ADD_MONTHS(TRUNC(PER.PER_FECHA_FIN, 'MM'), 1) + 19,
         'DD/MM/YYYY'
@@ -135,7 +141,87 @@ function computeByDepartamento(rows) {
 }
 
 function round2(n) {
-  return Math.round(n * 100) / 100;
+  return Math.round(toNumber(n) * 100) / 100;
+}
+
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeFilter(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+}
+
+function estadoNominaLabel(value) {
+  const estado = normalizeFilter(value);
+  if (estado === "A") return "Aprobado";
+  if (estado === "P") return "Pendiente";
+  if (estado === "B") return "Borrador";
+  return cleanText(value);
+}
+
+function estadoCoincide(row, filtro) {
+  const estadoNomina = normalizeFilter(row.ESTADO_NOMINA);
+  const labelNomina = normalizeFilter(estadoNominaLabel(row.ESTADO_NOMINA));
+  const estadoCalculado = normalizeFilter(row.ESTADO_CALCULADO);
+
+  return estadoNomina === filtro
+    || labelNomina === filtro
+    || estadoCalculado === filtro;
+}
+
+function getPeriodoPagoFactor(diasPeriodo) {
+  const dias = toNumber(diasPeriodo);
+  if (dias >= 14 && dias <= 16) return 0.5;
+  if (dias >= 28 && dias <= 31) return 1;
+  return dias > 0 ? Math.min(dias / 30, 1) : 0;
+}
+
+function buildIgssRows(rawRows, estadoFiltro = null) {
+  const filtro = normalizeFilter(estadoFiltro);
+
+  return rawRows
+    .map((r) => {
+      const diasPeriodo = Math.max(0, toNumber(r.DIAS_PERIODO));
+      const diasSuspendidos = Math.min(diasPeriodo, Math.max(0, toNumber(r.DIAS_SUSPENDIDOS)));
+      const diasTrabajados = Math.max(0, diasPeriodo - diasSuspendidos);
+      const salarioMensual = toNumber(r.SALARIO_BASE_MENSUAL);
+      const factorPago = getPeriodoPagoFactor(diasPeriodo);
+      const salarioBase = diasPeriodo > 0
+        ? round2(salarioMensual * factorPago * (diasTrabajados / diasPeriodo))
+        : 0;
+      const patronal = round2(salarioBase * PATRONAL_RATE);
+      const laboral = round2(salarioBase * LABORAL_RATE);
+      const totalIgss = round2(patronal + laboral);
+      const estadoCalculado = diasTrabajados <= 0
+        ? "Suspendido"
+        : diasSuspendidos > 0
+          ? "Con suspension"
+          : "Completo";
+
+      return {
+        ...r,
+        DIAS_PERIODO: diasPeriodo,
+        DIAS_SUSPENDIDOS: diasSuspendidos,
+        DIAS_TRABAJADOS: diasTrabajados,
+        SALARIO_BASE_MENSUAL: round2(salarioMensual),
+        SALARIO_BASE: salarioBase,
+        PATRONAL: patronal,
+        LABORAL: laboral,
+        TOTAL_IGSS: totalIgss,
+        ESTADO_NOMINA: r.ESTADO,
+        ESTADO_CALCULADO: estadoCalculado
+      };
+    })
+    .filter((r) => {
+      if (!filtro || filtro === "TODOS") return true;
+      return estadoCoincide(r, filtro);
+    });
 }
 
 function fmt(n) {
@@ -251,9 +337,9 @@ export async function getIgssReporte(req, res) {
   try {
     const { periodoId, departamentoId, estado } = req.query;
 
-    const { sql, binds } = buildIgssQuery({ periodoId, departamentoId, estado });
+    const { sql, binds } = buildIgssQuery({ periodoId, departamentoId });
     const result = await executeQuery(sql, binds);
-    const rows   = result.rows;
+    const rows   = buildIgssRows(result.rows, estado);
 
     if (rows.length === 0) {
       return res.json({
@@ -276,14 +362,22 @@ export async function getIgssReporte(req, res) {
       fechaLimitePago: firstRow.FECHA_LIMITE_PAGO,
       periodoInicio:   firstRow.PERIODO_INICIO,
       periodoFin:      firstRow.PERIODO_FIN,
-      estado: rows.every(r => r.ESTADO === firstRow.ESTADO) ? firstRow.ESTADO : "Mixto"
+      estado: rows.every(r => r.ESTADO_CALCULADO === firstRow.ESTADO_CALCULADO)
+        ? firstRow.ESTADO_CALCULADO
+        : "Mixto"
     };
 
     const empleados = rows.map(r => ({
       empId:        r.EMP_ID,
       empleado:     r.EMPLEADO,
+      dpi:          r.EMP_DPI,
+      nit:          r.EMP_NIT,
       iniciales:    r.INICIALES,
       puesto:       r.PUESTO,
+      diasPeriodo:  Number(r.DIAS_PERIODO ?? 0),
+      diasSuspendidos: Number(r.DIAS_SUSPENDIDOS ?? 0),
+      diasTrabajados: Number(r.DIAS_TRABAJADOS ?? 0),
+      salarioBaseMensual: Number(r.SALARIO_BASE_MENSUAL ?? 0),
       salarioBase:  Number(r.SALARIO_BASE ?? 0),
       patronal:     Number(r.PATRONAL     ?? 0),
       laboral:      Number(r.LABORAL      ?? 0),
@@ -291,7 +385,9 @@ export async function getIgssReporte(req, res) {
       departamento: r.DEPARTAMENTO,
       depId:        r.DEP_ID,
       nomId:        r.NOM_ID,
-      estado:       r.ESTADO
+      estado:       r.ESTADO_CALCULADO,
+      estadoNomina: r.ESTADO_NOMINA,
+      estadoNominaLabel: estadoNominaLabel(r.ESTADO_NOMINA)
     }));
 
     res.json({ empleados, totales, porDepartamento, resumen });
@@ -396,16 +492,18 @@ function sendIgssPlanillaPdf(req, res, rows, totales, firstRow, periodoLabel) {
     );
 
     const tableY = y1 + 89;
-    const cols = [24, 96, 365, 112, 26, 26, 62, WIDTH - 711];
+    const cols = [24, 74, 168, 92, 38, 74, 74, 74, 74, WIDTH - 696];
     const headers = [
-      "8- No.",
-      "No. de Afiliacion",
-      "9- Apellidos y Nombres Completos del Trabajador",
-      "10- Salario Total Devengado sin Deducciones",
-      "A",
-      "B",
-      "Fecha",
-      "12- Observaciones"
+      "No.",
+      "DPI",
+      "Empleado",
+      "Puesto",
+      "Dias",
+      "Salario base",
+      "Patronal",
+      "Laboral",
+      "Total",
+      "Estado"
     ];
     let x = LEFT;
     headers.forEach((header, index) => {
@@ -421,22 +519,23 @@ function sendIgssPlanillaPdf(req, res, rows, totales, firstRow, periodoLabel) {
     for (let i = 0; i < 16; i += 1) {
       const r = workers[i] ?? {};
       const y = tableY + 24 + i * 12;
-      const afiliacion = cleanText(r.EMP_AFILIACION_IGSS || r.EMP_DPI || r.EMP_NIT || r.EMP_ID);
       const values = [
         rows.length ? pageIndex * 16 + i + 1 : "",
-        afiliacion,
+        cleanText(r.EMP_DPI || r.EMP_NIT || r.EMP_ID),
         r.EMPLEADO,
+        r.PUESTO,
+        r.DIAS_TRABAJADOS ?? "",
         r.SALARIO_BASE != null ? money(r.SALARIO_BASE) : "",
-        "",
-        "",
-        "",
-        r.ESTADO ? `Nomina ${r.ESTADO}` : ""
+        r.PATRONAL != null ? money(r.PATRONAL) : "",
+        r.LABORAL != null ? money(r.LABORAL) : "",
+        r.TOTAL_IGSS != null ? money(r.TOTAL_IGSS) : "",
+        cleanText(r.ESTADO_CALCULADO)
       ];
       x = LEFT;
       values.forEach((value, index) => {
         cell(x, y, cols[index], 12, value, {
-          size: index === 2 ? 6 : 5.6,
-          align: index === 3 ? "right" : "left"
+          size: index === 2 ? 5.8 : 5.4,
+          align: [4, 5, 6, 7, 8].includes(index) ? "right" : "left"
         });
         x += cols[index];
       });
@@ -447,10 +546,10 @@ function sendIgssPlanillaPdf(req, res, rows, totales, firstRow, periodoLabel) {
       size: 5.4,
       bold: true
     });
-    cell(LEFT + cols[0] + cols[1], totalsY, cols[2], 20,
-      "8- Total de los Salarios Ordinarios y Extraordinarios", { size: 5.8, bold: true }
+    cell(LEFT + cols[0] + cols[1], totalsY, cols[2] + cols[3] + cols[4], 20,
+      "Total salario base ajustado por dias trabajados", { size: 5.8, bold: true }
     );
-    cell(LEFT + cols[0] + cols[1] + cols[2], totalsY, cols[3], 20, money(totales.totalSalarioBase), {
+    cell(LEFT + cols[0] + cols[1] + cols[2] + cols[3] + cols[4], totalsY, cols[5], 20, money(totales.totalSalarioBase), {
       size: 8,
       bold: true,
       align: "right"
@@ -500,22 +599,44 @@ function sendIgssPlanillaPdf(req, res, rows, totales, firstRow, periodoLabel) {
   doc.end();
 }
 
+export async function getIgssFacturaPDF(req, res) {
+  try {
+    const { periodoId, departamentoId, estado } = req.query;
+
+    const { sql, binds } = buildIgssQuery({ periodoId, departamentoId });
+    const result = await executeQuery(sql, binds);
+    const rows   = buildIgssRows(result.rows, estado);
+
+    const totales = computeTotals(rows);
+
+    const firstRow     = rows[0] ?? {};
+    const periodoLabel = formatPeriodoLabel(firstRow.PERIODO_INICIO);
+
+    sendIgssPlanillaPdf(req, res, rows, totales, firstRow, periodoLabel);
+  } catch (error) {
+    console.error("Error en getIgssFacturaPDF:", error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: "Error generando PDF de la factura IGSS",
+        error: error.message
+      });
+    }
+  }
+}
+
 export async function getIgssReportePDF(req, res) {
   try {
     const { periodoId, departamentoId, estado } = req.query;
 
-    const { sql, binds } = buildIgssQuery({ periodoId, departamentoId, estado });
+    const { sql, binds } = buildIgssQuery({ periodoId, departamentoId });
     const result = await executeQuery(sql, binds);
-    const rows   = result.rows;
+    const rows   = buildIgssRows(result.rows, estado);
 
     const totales         = computeTotals(rows);
     const porDepartamento = computeByDepartamento(rows);
 
     const firstRow     = rows[0] ?? {};
     const periodoLabel = formatPeriodoLabel(firstRow.PERIODO_INICIO);
-
-    sendIgssPlanillaPdf(req, res, rows, totales, firstRow, periodoLabel);
-    return;
 
     // ── Inicializar documento PDF ─────────────────────────────────────────
     const doc = new PDFDocument({ margin: 40, size: "A4", layout: "landscape" });
