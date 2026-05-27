@@ -11,6 +11,20 @@ function roundMoney(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
 
+function getRequestEmpId(body = {}) {
+  const value = body.emp_id
+    ?? body.empleado_id
+    ?? body.id_empleado
+    ?? body.empleadoId
+    ?? body.empId
+    ?? body.EMP_ID
+    ?? body.EMPLEADO_ID
+    ?? body.ID_EMPLEADO;
+
+  const empId = Number(value);
+  return Number.isInteger(empId) && empId > 0 ? empId : null;
+}
+
 function normalizeDate(value) {
   if (!value) {
     return null;
@@ -103,12 +117,58 @@ async function getLiquidacionColumns(execute) {
   return { fechaEliminacion, estadoRetencion };
 }
 
-async function calcularLiquidacionData(execute, { emp_id, fecha_retiro, tipo_retiro }) {
-  const empId = Number(emp_id);
+async function ensureEmpleadoExists(execute, empId) {
+  const empleadoResult = await execute(
+    `
+      SELECT COUNT(*) AS TOTAL
+      FROM EMP_EMPLEADO
+      WHERE EMP_ID = :empId
+    `,
+    { empId }
+  );
+
+  const total = Number(empleadoResult.rows[0]?.TOTAL || 0);
+  console.log("LIQ EMP COUNT:", { empId, total });
+
+  if (total === 0) {
+    throw new Error(`Empleado no existe para liquidaci\u00f3n: EMP_ID ${empId}`);
+  }
+}
+
+async function getLiqEmpFkInfo(execute) {
+  const result = await execute(
+    `
+      SELECT ac.owner,
+             ac.constraint_name,
+             acc.table_name,
+             acc.column_name,
+             pk.owner AS referenced_owner,
+             pk.table_name AS referenced_table,
+             pkc.column_name AS referenced_column
+      FROM all_constraints ac
+      JOIN all_cons_columns acc
+        ON ac.owner = acc.owner
+       AND ac.constraint_name = acc.constraint_name
+      JOIN all_constraints pk
+        ON ac.r_owner = pk.owner
+       AND ac.r_constraint_name = pk.constraint_name
+      JOIN all_cons_columns pkc
+        ON pk.owner = pkc.owner
+       AND pk.constraint_name = pkc.constraint_name
+      WHERE ac.constraint_name = 'FK_LIQ_EMP'
+    `
+  );
+
+  return result.rows;
+}
+
+async function calcularLiquidacionData(execute, body) {
+  const { fecha_retiro, tipo_retiro } = body || {};
+  const empId = getRequestEmpId(body);
   const fechaSalidaIso = normalizeDate(fecha_retiro);
   const fechaSalida = getDateParts(fechaSalidaIso);
 
-  if (!Number.isInteger(empId) || empId <= 0) {
+  if (!empId) {
     throw new Error("El empleado es obligatorio");
   }
 
@@ -139,7 +199,7 @@ async function calcularLiquidacionData(execute, { emp_id, fecha_retiro, tipo_ret
   );
 
   if (empleadoResult.rows.length === 0) {
-    throw new Error("Empleado no encontrado");
+    throw new Error(`Empleado no existe para liquidaci\u00f3n: EMP_ID ${empId}`);
   }
 
   const empleado = empleadoResult.rows[0];
@@ -304,9 +364,17 @@ export async function calcularLiquidacion(req, res) {
 
 export async function createLiquidacion(req, res) {
   try {
+    console.log("BODY LIQUIDACION:", req.body);
+    const receivedEmpId = Number(req.body?.emp_id ?? req.body?.empleado_id ?? req.body?.EMP_ID);
+    console.log("LIQ EMP_ID DIRECTO:", receivedEmpId);
+
     const result = await executeTransaction(async ({ execute }) => {
       const columns = await getLiquidacionColumns(execute);
       const calculo = await calcularLiquidacionData(execute, req.body);
+      console.log("LIQ EMP_ID NORMALIZADO:", calculo.emp_id);
+      await ensureEmpleadoExists(execute, calculo.emp_id);
+      const fkInfo = await getLiqEmpFkInfo(execute);
+      console.log("FK_LIQ_EMP INFO:", fkInfo);
       const fechaRegistro = normalizeDate(req.body.fecha_registro) || calculo.fecha_retiro;
       const fechaEliminacionSql = columns.fechaEliminacion
         ? ", LIQ_FECHA_ELIMINACION"
@@ -320,6 +388,20 @@ export async function createLiquidacion(req, res) {
       const estadoRetencionValue = columns.estadoRetencion
         ? ", 'RETENIDA'"
         : "";
+      const insertBinds = {
+        fecha_retiro: calculo.fecha_retiro,
+        tipo_retiro: calculo.tipo_retiro,
+        dias_trabajado: calculo.dias_trabajado,
+        indemnizacion: calculo.indemnizacion,
+        vacaciones_pagadas: calculo.vacaciones_pagadas,
+        aguinaldo_proporcional: calculo.aguinaldo_proporcional,
+        bono14_proporcional: calculo.bono14_proporcional,
+        liquidacion: calculo.liquidacion,
+        fecha_registro: fechaRegistro,
+        emp_id: calculo.emp_id
+      };
+
+      console.log("LIQ INSERT EMP_ID BIND:", insertBinds.emp_id);
 
       await execute(
         `
@@ -353,18 +435,7 @@ export async function createLiquidacion(req, res) {
             ${estadoRetencionValue}
           )
         `,
-        {
-          fecha_retiro: calculo.fecha_retiro,
-          tipo_retiro: calculo.tipo_retiro,
-          dias_trabajado: calculo.dias_trabajado,
-          indemnizacion: calculo.indemnizacion,
-          vacaciones_pagadas: calculo.vacaciones_pagadas,
-          aguinaldo_proporcional: calculo.aguinaldo_proporcional,
-          bono14_proporcional: calculo.bono14_proporcional,
-          liquidacion: calculo.liquidacion,
-          fecha_registro: fechaRegistro,
-          emp_id: calculo.emp_id
-        }
+        insertBinds
       );
 
       await marcarEmpleadoLiquidado(execute, calculo.emp_id, calculo.fecha_retiro);
@@ -376,6 +447,10 @@ export async function createLiquidacion(req, res) {
       calculo: result
     });
   } catch (error) {
+    if (error.message?.startsWith("Empleado no existe para liquidaci\u00f3n")) {
+      return res.status(400).json({ message: error.message });
+    }
+
     res.status(400).json({
       message: "Error creando liquidacion",
       error: error.message
