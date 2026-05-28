@@ -1,5 +1,133 @@
 import { executeQuery } from "../../config/db.js";
 
+function normalizeRole(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function isEmpleado(req) {
+  return normalizeRole(req.usuario?.rol_nombre) === "empleado";
+}
+
+function puedeOperarEmpleado(req, empId) {
+  if (!isEmpleado(req)) return true;
+  return Number(req.usuario?.emp_id) === Number(empId);
+}
+
+function parseHoraMinutos(value) {
+  const [hours = "0", minutes = "0"] = String(value || "").split(":");
+  return (Number(hours) || 0) * 60 + (Number(minutes) || 0);
+}
+
+function minutosActuales() {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
+
+function getDiaHorarioColumn(date = new Date()) {
+  return [
+    "HOR_DOMINGO",
+    "HOR_LUNES",
+    "HOR_MARTES",
+    "HOR_MIERCOLES",
+    "HOR_JUEVES",
+    "HOR_VIERNES",
+    "HOR_SABADO"
+  ][date.getDay()];
+}
+
+async function getHorarioEmpleado(empId) {
+  const result = await executeQuery(
+    `
+      SELECT
+        e.EMP_ID,
+        e.HOR_ID,
+        h.HOR_DESCRIPCION,
+        h.HOR_HORA_INICIO,
+        h.HOR_HORA_FIN,
+        h.HOR_LUNES,
+        h.HOR_MARTES,
+        h.HOR_MIERCOLES,
+        h.HOR_JUEVES,
+        h.HOR_VIERNES,
+        h.HOR_SABADO,
+        h.HOR_DOMINGO
+      FROM EMP_EMPLEADO e
+      LEFT JOIN EMP_HORARIO h ON h.HOR_ID = e.HOR_ID
+      WHERE e.EMP_ID = :emp_id
+    `,
+    { emp_id: Number(empId) }
+  );
+
+  return result.rows[0] || null;
+}
+
+function validarDiaLaboral(horario) {
+  if (!horario?.HOR_ID) {
+    return "No tienes un horario asignado. Contacta a RRHH antes de marcar.";
+  }
+
+  const dia = getDiaHorarioColumn();
+  if (Number(horario[dia] || 0) !== 1) {
+    return "Hoy no tienes jornada asignada en tu horario.";
+  }
+
+  return null;
+}
+
+function validarEntradaEmpleado(horario) {
+  const errorDia = validarDiaLaboral(horario);
+  if (errorDia) return errorDia;
+
+  const inicio = parseHoraMinutos(horario.HOR_HORA_INICIO);
+  const ahora = minutosActuales();
+  const inicioVentana = inicio - 60;
+  const finVentana = inicio + 120;
+
+  if (ahora < inicioVentana) {
+    return "Aun es muy temprano para registrar entrada. Puedes marcar hasta 60 minutos antes de tu horario.";
+  }
+
+  if (ahora > finVentana) {
+    return "La ventana para registrar entrada ya paso. Contacta a tu supervisor.";
+  }
+
+  return null;
+}
+
+function validarSalidaEmpleado(horario, entrada) {
+  const errorDia = validarDiaLaboral(horario);
+  if (errorDia) return errorDia;
+
+  const ahoraDate = new Date();
+  const entradaDate = new Date(entrada);
+  const minutosDesdeEntrada = (ahoraDate.getTime() - entradaDate.getTime()) / 60000;
+
+  if (minutosDesdeEntrada < 30) {
+    return "No puedes registrar salida tan pronto. Deben pasar al menos 30 minutos desde tu entrada.";
+  }
+
+  const fin = parseHoraMinutos(horario.HOR_HORA_FIN);
+  const ahora = minutosActuales();
+  const inicioVentanaSalida = fin - 30;
+  const finVentanaSalida = fin + 120;
+
+  if (ahora < inicioVentanaSalida) {
+    return "Aun es muy temprano para registrar salida. Puedes marcar desde 30 minutos antes de tu hora de salida.";
+  }
+
+  if (ahora > finVentanaSalida) {
+    return "La ventana para registrar salida ya paso. Contacta a tu supervisor.";
+  }
+
+  return null;
+}
+
 // LISTAR MARCAJES
 export async function getMarcajes(req, res) {
   try {
@@ -74,6 +202,12 @@ export async function createMarcaje(req, res) {
       return res.status(400).json({ message: "ID de empleado es requerido" });
     }
 
+    if (!puedeOperarEmpleado(req, emp_id)) {
+      return res.status(403).json({ message: "Solo puedes registrar marcajes para tu propio empleado" });
+    }
+
+    const horarioEmpleado = isEmpleado(req) ? await getHorarioEmpleado(emp_id) : null;
+
     const sql = `
       INSERT INTO EMP_MARCAJE (
         MAR_ID,
@@ -120,6 +254,10 @@ export async function registrarMarcaje(req, res) {
       return res.status(400).json({ message: "ID de empleado es requerido" });
     }
 
+    if (!puedeOperarEmpleado(req, emp_id)) {
+      return res.status(403).json({ message: "Solo puedes registrar marcajes para tu propio empleado" });
+    }
+
     const sqlCheck = `
       SELECT MAR_ID, MAR_ENTRADA, MAR_SALIDA
       FROM EMP_MARCAJE
@@ -132,6 +270,11 @@ export async function registrarMarcaje(req, res) {
     });
 
     if (checkResult.rows.length === 0) {
+      const errorEntrada = horarioEmpleado ? validarEntradaEmpleado(horarioEmpleado) : null;
+      if (errorEntrada) {
+        return res.status(400).json({ message: errorEntrada });
+      }
+
       const sqlInsert = `
         INSERT INTO EMP_MARCAJE (
           MAR_ID,
@@ -161,6 +304,11 @@ export async function registrarMarcaje(req, res) {
     const registro = checkResult.rows[0];
 
     if (!registro.MAR_SALIDA) {
+      const errorSalida = horarioEmpleado ? validarSalidaEmpleado(horarioEmpleado, registro.MAR_ENTRADA) : null;
+      if (errorSalida) {
+        return res.status(400).json({ message: errorSalida });
+      }
+
       const sqlUpdate = `
         UPDATE EMP_MARCAJE
         SET MAR_SALIDA = SYSDATE
@@ -195,6 +343,10 @@ export async function getHistorial(req, res) {
 
     if (!emp_id) {
       return res.status(400).json({ message: "ID de empleado es requerido" });
+    }
+
+    if (!puedeOperarEmpleado(req, emp_id)) {
+      return res.status(403).json({ message: "Solo puedes consultar tu propio historial de marcajes" });
     }
 
     const sql = `
@@ -236,6 +388,10 @@ export async function updateMarcaje(req, res) {
   try {
     const { id } = req.params;
     const { autorizacion } = req.body;
+
+    if (isEmpleado(req)) {
+      return res.status(403).json({ message: "No puedes autorizar marcajes desde un usuario empleado" });
+    }
 
     if (![1, 2].includes(Number(autorizacion))) {
       return res.status(400).json({
