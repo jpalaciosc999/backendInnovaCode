@@ -34,17 +34,19 @@ export async function login(req, res) {
 
     const sql = `
       SELECT
-        USU_ID              AS "id",
-        USU_USERNAME        AS "username",
-        USU_PASSWORD        AS "password",
-        USU_NOMBRE_COMPLETO AS "nombre_completo",
-        USU_CORREO          AS "correo",
-        USU_ESTADO          AS "estado",
-        ROL_ID              AS "rol_id",
-        EMP_ID              AS "emp_id"
-      FROM EMP_USUARIO
-      WHERE LOWER(USU_USERNAME) = LOWER(:login)
-         OR LOWER(USU_CORREO) = LOWER(:login)
+        u.USU_ID              AS "id",
+        u.USU_USERNAME        AS "username",
+        u.USU_PASSWORD        AS "password",
+        u.USU_NOMBRE_COMPLETO AS "nombre_completo",
+        u.USU_CORREO          AS "correo",
+        u.USU_ESTADO          AS "estado",
+        u.ROL_ID              AS "rol_id",
+        r.ROL_NOMBRE          AS "rol_nombre",
+        u.EMP_ID              AS "emp_id"
+      FROM EMP_USUARIO u
+      LEFT JOIN EMP_ROLES r ON r.ROL_ID = u.ROL_ID
+      WHERE LOWER(u.USU_USERNAME) = LOWER(:login)
+         OR LOWER(u.USU_CORREO) = LOWER(:login)
     `;
 
     const result = await executeQuery(sql, { login });
@@ -78,6 +80,7 @@ export async function login(req, res) {
       nombre_completo: usuario.nombre_completo,
       correo: usuario.correo,
       rol_id: usuario.rol_id,
+      rol_nombre: usuario.rol_nombre,
       emp_id: usuario.emp_id,
       permisos
     };
@@ -96,6 +99,7 @@ export async function login(req, res) {
         nombre_completo: usuario.nombre_completo,
         correo: usuario.correo,
         rol_id: usuario.rol_id,
+        rol_nombre: usuario.rol_nombre,
         emp_id: usuario.emp_id,
         permisos
       }
@@ -141,6 +145,7 @@ export async function readToken(req, res) {
         nombre_completo: decoded.nombre_completo,
         correo: decoded.correo,
         rol_id: decoded.rol_id,
+        rol_nombre: decoded.rol_nombre,
         emp_id: decoded.emp_id,
         permisos: decoded.permisos || []
       },
