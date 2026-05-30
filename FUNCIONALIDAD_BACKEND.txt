@@ -1,0 +1,1027 @@
+DOCUMENTO DE FUNCIONALIDAD DEL BACKEND
+=====================================
+
+Proyecto: backendInnovaCode
+Fecha de generacion: 2026-05-30
+
+1. Resumen general
+------------------
+Este backend es una API REST construida con Node.js, Express y Oracle Database.
+Su objetivo principal es administrar procesos de recursos humanos y nomina:
+empleados, contratos, asistencia/marcajes, periodos, ingresos, descuentos,
+prestamos, KPI, liquidaciones, reportes y seguridad basada en roles/permisos.
+
+El punto de entrada de la aplicacion es src/server.js, que carga variables de
+entorno, inicializa el pool de Oracle y levanta el servidor HTTP. La aplicacion
+Express se configura en src/app.js.
+
+2. Tecnologias y dependencias
+-----------------------------
+- Express 5: servidor HTTP y enrutamiento.
+- oracledb: conexion y ejecucion de consultas contra Oracle.
+- dotenv: carga de variables de entorno.
+- cors: control de origenes permitidos.
+- jsonwebtoken: autenticacion JWT.
+- bcryptjs: validacion y generacion de hashes de contrasenas.
+- pdfkit: generacion de reportes PDF.
+- nodemon: ejecucion en desarrollo.
+
+Scripts disponibles:
+- npm run dev: inicia con nodemon src/server.js.
+- npm start: inicia con node src/server.js.
+
+3. Configuracion principal
+--------------------------
+Archivo: src/app.js
+- Habilita CORS para FRONTEND_URL y origenes locales comunes.
+- Permite metodos GET, POST, PUT, DELETE y OPTIONS.
+- Expone el header Content-Disposition para descargas PDF.
+- Usa express.json con limite de 1mb.
+- Normaliza respuestas de error para devolver { error } cuando el status es 400+.
+- Expone GET / con mensaje de salud: "Backend funcionando correctamente".
+- Monta todos los modulos REST.
+
+Archivo: src/server.js
+- Carga dotenv.
+- Usa PORT desde .env o 4000 por defecto.
+- Llama initDB() antes de escuchar peticiones.
+- Cierra el pool de Oracle en SIGINT.
+
+Archivo: src/config/db.js
+- Crea un pool Oracle con ORACLE_USER, ORACLE_PASSWORD y ORACLE_CONNECT_STRING.
+- Configura outFormat como objeto.
+- Configura autoCommit por defecto en consultas simples.
+- Expone executeQuery(sql, binds, options).
+- Expone executeTransaction(callback), con commit al finalizar y rollback ante error.
+- Cierra conexiones en finally.
+
+4. Seguridad, autenticacion y permisos
+--------------------------------------
+Modulos principales:
+- src/routes/auth/auth.controller.js
+- src/middlewares/auth.middleware.js
+- src/utils/adminAccess.js
+- src/utils/auditoria.js
+
+Autenticacion:
+- POST /auth/login
+  Valida username o correo y password contra EMP_USUARIO.
+  Soporta contrasenas en texto plano antiguas y hashes bcrypt que empiezan con $2.
+  Rechaza usuarios inactivos.
+  Devuelve token JWT, expiracion, datos de usuario, rol y permisos.
+
+- POST /auth/readtoken
+  Valida un token recibido en body.
+  Devuelve usuario decodificado, permisos y datos de expiracion.
+
+Middleware JWT:
+- verificarToken exige header Authorization: Bearer <token>.
+- requierePermiso(modulo, permiso) valida que el usuario vigente tenga un permiso.
+- requiereAlgunoPermiso(...) permite acceso si el usuario posee al menos uno.
+- requiereRolVigente valida que usuario y rol sigan activos en base de datos.
+
+Permisos:
+- Los permisos se cargan desde EMP_ROL_PERMISOS y EMP_PERMISOS.
+- El middleware normaliza texto, acentos, guiones y espacios para comparar permisos.
+- Hay alias de modulo: ADMIN, REPORTES, EMPLEADOS, NOMINA y ASISTENCIA.
+
+Auditoria:
+- registrarBitacora inserta acciones en EMP_BITACORA.
+- Si existe usuario autenticado, relaciona usuario y bitacora en EMP_USUARIO_BITACORA.
+- Registra accion, tabla afectada, registro, descripcion, valores anterior/nuevo e IP.
+
+5. Rutas montadas
+-----------------
+Rutas publicas o generales:
+- GET /
+- /auth
+- /clientes
+- /ingresos
+- /descuentos
+- /puestos
+- /departamentos
+- /kpi
+- /kpiResultado
+- /nominas
+- /nominaDetalle
+- /nomina-asignaciones
+- /nominaAsignaciones
+- /prestamo
+- /prestamoDetalle
+- /periodo
+- /liquidaciones
+- /sedes
+- /empleados
+- /cuentas
+- /control y /Control
+- /tipoContrato
+- /empleadoContrato y /EmpleadoContrato
+- /suspensionIgss y /SuspensionIgss
+- /marcaje, /Marcaje, /marcajes y /Marcajes
+- /horarios
+- /api/reportes y /reportes
+
+Rutas con proteccion explicita por token/permisos:
+- /admin requiere token y permisos administrativos/reportes segun endpoint.
+- /usuarios requiere token y permiso ADMIN / Gestionar usuarios.
+- /roles requiere token y permiso ADMIN / Gestionar roles.
+- /permisos requiere token y permiso ADMIN / Gestionar permisos.
+- /rolPermisos requiere token y permiso ADMIN / Gestionar permisos.
+- /bitacora requiere token y permiso ADMIN / Ver bitacora.
+- /usuarioBitacora requiere token y permiso ADMIN / Ver bitacora.
+- /marcaje requiere token y rol vigente.
+- /api/reportes/igss requiere token y permisos de reportes/contabilidad/admin.
+- /api/reportes/isr requiere token y permisos autorizados.
+- /api/reportes/dashboard requiere token y rol vigente.
+
+6. Modulos funcionales
+----------------------
+
+6.1 Clientes
+Base route: /clientes
+Tabla principal: CLIENTES / HR.CLIENTES
+Funcionalidad:
+- Listar clientes.
+- Consultar cliente por ID.
+- Crear cliente.
+- Actualizar cliente.
+- Eliminar cliente.
+
+Endpoints:
+- GET /clientes
+- GET /clientes/:id
+- POST /clientes
+- PUT /clientes/:id
+- DELETE /clientes/:id
+
+6.2 Usuarios
+Base route: /usuarios
+Tabla principal: EMP_USUARIO
+Funcionalidad:
+- Administrar usuarios del sistema.
+- Asociar usuarios a roles y empleados.
+- Validar unicidad de username/correo.
+- Validar rol y empleado existentes.
+- Crear y actualizar passwords con bcrypt.
+- Registrar bitacora en altas, cambios y bajas.
+
+Endpoints:
+- GET /usuarios
+- GET /usuarios/:id
+- POST /usuarios
+- PUT /usuarios/:id
+- DELETE /usuarios/:id
+
+6.3 Roles
+Base route: /roles
+Tabla principal: EMP_ROLES
+Funcionalidad:
+- Administrar roles.
+- Validar nombre unico.
+- Manejar niveles de acceso.
+- Evitar eliminacion cuando existan usuarios activos asociados.
+- Registrar auditoria.
+
+Endpoints:
+- GET /roles
+- GET /roles/:id
+- POST /roles
+- PUT /roles/:id
+- DELETE /roles/:id
+
+6.4 Permisos
+Base route: /permisos
+Tabla principal: EMP_PERMISOS
+Funcionalidad:
+- Administrar catalogo de permisos por modulo.
+- Validar duplicados por nombre/modulo.
+- Registrar auditoria.
+
+Endpoints:
+- GET /permisos
+- GET /permisos/:id
+- POST /permisos
+- PUT /permisos/:id
+- DELETE /permisos/:id
+
+6.5 Rol-permisos
+Base route: /rolPermisos
+Tabla principal: EMP_ROL_PERMISOS
+Funcionalidad:
+- Asignar permisos a roles.
+- Validar existencia de rol y permiso.
+- Evitar asignaciones duplicadas.
+- Registrar auditoria.
+
+Endpoints:
+- GET /rolPermisos
+- GET /rolPermisos/:id
+- POST /rolPermisos
+- PUT /rolPermisos/:id
+- DELETE /rolPermisos/:id
+
+6.6 Administracion
+Base route: /admin
+Funcionalidad:
+- Dashboard/resumen administrativo.
+- Actividad reciente desde bitacora.
+- Catalogo de roles, permisos y usuarios para administracion.
+
+Endpoints:
+- GET /admin/resumen
+- GET /admin/actividad
+- GET /admin/catalogo
+
+6.7 Bitacora
+Base route: /bitacora
+Tabla principal: EMP_BITACORA
+Funcionalidad:
+- Consultar eventos auditados.
+- Consultar detalle por ID.
+- El controlador tambien incluye funciones internas para crear, actualizar y
+  eliminar bitacora, aunque las rutas expuestas solo son consulta.
+
+Endpoints:
+- GET /bitacora
+- GET /bitacora/:id
+
+6.8 Usuario-bitacora
+Base route: /usuarioBitacora
+Tabla principal: EMP_USUARIO_BITACORA
+Funcionalidad:
+- Consultar relaciones entre usuarios y eventos de bitacora.
+- El controlador soporta crear, actualizar y eliminar relaciones, pero las
+  rutas expuestas actualmente solo son de consulta.
+
+Endpoints:
+- GET /usuarioBitacora
+- GET /usuarioBitacora/:id
+
+6.9 Empleados
+Base route: /empleados
+Tabla principal: EMP_EMPLEADO
+Tablas relacionadas: EMP_EMPLEADO_CONTRATO, EMP_TIPO_CONTRATO,
+EMP_LIQUIDACIONES, EMP_PUESTO, EMP_DEPARTAMENTO, EMP_SEDE, EMP_HORARIO
+Funcionalidad:
+- Administrar empleados.
+- Listar empleados con datos de puesto, departamento, sede y estado.
+- Crear empleados y contrato inicial en transaccion.
+- Actualizar datos y cambios contractuales.
+- Validar tipo de contrato.
+- Evitar traslapes de contratos.
+- Marcar empleados liquidados/inactivos segun liquidaciones.
+
+Endpoints:
+- GET /empleados
+- GET /empleados/:id
+- POST /empleados
+- PUT /empleados/:id
+- DELETE /empleados/:id
+
+6.10 Tipo de contrato
+Base route: /tipoContrato
+Tabla principal: EMP_TIPO_CONTRATO
+Funcionalidad:
+- CRUD de tipos de contrato.
+- Gestiona nombre, numero, descripcion y tipo de jornada.
+
+Endpoints:
+- GET /tipoContrato
+- GET /tipoContrato/:id
+- POST /tipoContrato
+- PUT /tipoContrato/:id
+- DELETE /tipoContrato/:id
+
+6.11 Empleado-contrato
+Base route: /empleadoContrato
+Tabla principal: EMP_EMPLEADO_CONTRATO
+Funcionalidad:
+- Administrar contratos laborales de empleados.
+- Validar empleado y tipo de contrato.
+- Validar que no existan contratos traslapados.
+- Mantener un contrato actual por empleado marcando otros como no actuales.
+- Crear/actualizar en transacciones.
+
+Endpoints:
+- GET /empleadoContrato
+- GET /empleadoContrato/:id
+- POST /empleadoContrato
+- PUT /empleadoContrato/:id
+- DELETE /empleadoContrato/:id
+
+6.12 Puestos
+Base route: /puestos
+Tabla principal: EMP_PUESTO
+Relacion: EMP_DEPARTAMENTO
+Funcionalidad:
+- CRUD de puestos.
+- Consultar puestos con departamento.
+- Manejar salario base, codigo, nombre, descripcion y estado.
+
+Endpoints:
+- GET /puestos
+- GET /puestos/detalle
+- GET /puestos/:id
+- POST /puestos
+- PUT /puestos/:id
+- DELETE /puestos/:id
+
+6.13 Departamentos
+Base route: /departamentos
+Tabla principal: EMP_DEPARTAMENTO
+Funcionalidad:
+- CRUD de departamentos.
+- Manejo de nombre, descripcion, estado, fecha de creacion/modificacion.
+
+Endpoints:
+- GET /departamentos
+- GET /departamentos/:id
+- POST /departamentos
+- PUT /departamentos/:id
+- DELETE /departamentos/:id
+
+6.14 Sedes
+Base route: /sedes
+Tabla principal: EMP_SEDE
+Funcionalidad:
+- CRUD de sedes.
+- Administra nombre, telefono, departamento, municipio y zona.
+
+Endpoints:
+- GET /sedes
+- GET /sedes/:id
+- POST /sedes
+- PUT /sedes/:id
+- DELETE /sedes/:id
+
+6.15 Horarios
+Base route: /horarios
+Tabla principal: EMP_HORARIO
+Funcionalidad:
+- CRUD de horarios laborales.
+- Valida descripcion, hora de inicio y hora de fin.
+- Administra margen de tolerancia y horas esperadas segun estructura.
+
+Endpoints:
+- GET /horarios
+- GET /horarios/:id
+- POST /horarios
+- PUT /horarios/:id
+- DELETE /horarios/:id
+
+6.16 Cuentas bancarias
+Base route: /cuentas
+Tabla principal: EMP_CUENTA_BANCARIA
+Funcionalidad:
+- CRUD de cuentas bancarias de empleados.
+- Administra nombre, numero, tipo y empleado asociado.
+
+Endpoints:
+- GET /cuentas
+- GET /cuentas/:id
+- POST /cuentas
+- PUT /cuentas/:id
+- DELETE /cuentas/:id
+
+6.17 Control laboral
+Base route: /control
+Tabla principal: EMP_CONTROL_LABORAL
+Funcionalidad:
+- CRUD de controles laborales.
+- Gestiona ausencias, permisos, suspensiones u otros eventos laborales.
+- Es usado por liquidaciones para calcular dias no laborados/suspendidos.
+
+Endpoints:
+- GET /control
+- GET /control/:id
+- POST /control
+- PUT /control/:id
+- DELETE /control/:id
+
+6.18 Suspension IGSS
+Base route: /suspensionIgss
+Tabla principal: EMP_SUSPENSION_IGSS
+Funcionalidad:
+- CRUD de suspensiones IGSS.
+- Valida empleado existente.
+- Valida certificado unico.
+- Evita traslapes de suspensiones activas.
+
+Endpoints:
+- GET /suspensionIgss
+- GET /suspensionIgss/:id
+- POST /suspensionIgss
+- PUT /suspensionIgss/:id
+- DELETE /suspensionIgss/:id
+
+6.19 Marcajes/asistencia
+Base route: /marcaje y aliases /marcajes, /Marcaje, /Marcajes
+Tabla principal: EMP_MARCAJE
+Tablas relacionadas: EMP_EMPLEADO, EMP_HORARIO, EMP_LIQUIDACIONES
+Funcionalidad:
+- Crear marcajes manuales.
+- Registrar marcaje automatico con POST /registrar.
+- Consultar historial.
+- Validar que el empleado sea marcable, activo y no liquidado.
+- Determinar eventos de entrada/salida del dia.
+- Calcular resumen diario e informacion de horario.
+
+Endpoints:
+- GET /marcaje
+- GET /marcaje/historial
+- GET /marcaje/:id
+- POST /marcaje
+- POST /marcaje/registrar
+- PUT /marcaje/:id
+- DELETE /marcaje/:id
+
+6.20 Periodos
+Base route: /periodo
+Tabla principal: EMP_PERIODO
+Funcionalidad:
+- CRUD de periodos de nomina.
+- Maneja fecha de inicio, fecha fin, fecha de pago y estado.
+
+Endpoints:
+- GET /periodo
+- GET /periodo/:id
+- POST /periodo
+- PUT /periodo/:id
+- DELETE /periodo/:id
+
+6.21 Ingresos
+Base route: /ingresos
+Tabla principal: EMP_INGRESO
+Funcionalidad:
+- CRUD de tipos/conceptos de ingreso.
+- Ejemplos usados por nomina: salario base, bonificacion incentivo, horas extra,
+  comisiones/KPI y otros ingresos.
+
+Endpoints:
+- GET /ingresos
+- GET /ingresos/:id
+- POST /ingresos
+- PUT /ingresos/:id
+- DELETE /ingresos/:id
+
+6.22 Descuentos
+Base route: /descuentos
+Tabla principal: EMP_DESCUENTO
+Funcionalidad:
+- CRUD de tipos/conceptos de descuento.
+- Soporta calculos fijos o porcentuales.
+- Ejemplos usados por nomina: IGSS laboral, ISR, prestamos, anticipos,
+  descuentos judiciales y otros egresos.
+
+Endpoints:
+- GET /descuentos
+- GET /descuentos/:id
+- POST /descuentos
+- PUT /descuentos/:id
+- DELETE /descuentos/:id
+
+6.23 KPI
+Base route: /kpi
+Tabla principal: EMP_KPI
+Funcionalidad:
+- CRUD de indicadores KPI.
+- Administra nombre, tipo y valor.
+
+Endpoints:
+- GET /kpi
+- GET /kpi/:id
+- POST /kpi
+- PUT /kpi/:id
+- DELETE /kpi/:id
+
+6.24 KPI resultado
+Base route: /kpiResultado
+Tabla principal: EMP_KPI_RESULTADO
+Funcionalidad:
+- CRUD de resultados KPI por empleado/periodo.
+- Se integra con nomina para sumar comisiones o montos variables.
+- Antes de eliminar valida si existe relacion con detalle de nomina.
+
+Endpoints:
+- GET /kpiResultado
+- GET /kpiResultado/:id
+- POST /kpiResultado
+- PUT /kpiResultado/:id
+- DELETE /kpiResultado/:id
+
+6.25 Nomina
+Base route: /nominas
+Tablas principales: EMP_NOMINA, EMP_NOMINA_DETALLE
+Tablas relacionadas: EMP_PERIODO, EMP_EMPLEADO, EMP_EMPLEADO_CONTRATO,
+EMP_INGRESO, EMP_DESCUENTO, EMP_KPI_RESULTADO, EMP_NOMINA_ASIGNACION,
+EMP_MARCAJE, EMP_PRESTAMO, EMP_PRESTAMO_DETALLE
+Funcionalidad:
+- CRUD de encabezados de nomina.
+- Generacion automatica de nominas por periodo.
+- Identifica empleados elegibles por contratos vigentes, asignaciones y estado.
+- Calcula salario ordinario segun periodo.
+- Incluye ingresos recurrentes.
+- Calcula bonificacion, KPI/comisiones y horas extra desde marcajes.
+- Incluye asignaciones manuales de ingreso/descuento.
+- Aplica descuentos obligatorios como IGSS e ISR.
+- Aplica cuotas de prestamos y registra pagos en EMP_PRESTAMO_DETALLE.
+- Recalcula o actualiza nominas existentes en transaccion.
+- Al eliminar nomina, elimina primero el detalle.
+
+Endpoints:
+- GET /nominas
+- GET /nominas/:id
+- POST /nominas
+- POST /nominas/generar
+- PUT /nominas/:id
+- DELETE /nominas/:id
+
+6.26 Nomina detalle
+Base route: /nominaDetalle
+Tabla principal: EMP_NOMINA_DETALLE
+Funcionalidad:
+- CRUD de conceptos detallados asociados a una nomina.
+- Puede registrar ingresos, descuentos, descripcion, monto y referencia.
+
+Endpoints:
+- GET /nominaDetalle
+- GET /nominaDetalle/:id
+- POST /nominaDetalle
+- PUT /nominaDetalle/:id
+- DELETE /nominaDetalle/:id
+
+6.27 Nomina asignaciones
+Base route: /nomina-asignaciones y /nominaAsignaciones
+Tabla principal: EMP_NOMINA_ASIGNACION
+Funcionalidad:
+- CRUD de asignaciones manuales de ingresos/descuentos por empleado y periodo.
+- Valida tipo de asignacion:
+  - INGRESO requiere tis_id y no debe llevar tds_id.
+  - DESCUENTO requiere tds_id y no debe llevar tis_id.
+- Valida que el empleado pueda recibir asignaciones.
+- Incluye soporte para estado/anulacion logica segun controlador.
+
+Endpoints:
+- GET /nomina-asignaciones
+- GET /nomina-asignaciones/:id
+- POST /nomina-asignaciones
+- PUT /nomina-asignaciones/:id
+- DELETE /nomina-asignaciones/:id
+
+6.28 Prestamos
+Base route: /prestamo
+Tabla principal: EMP_PRESTAMO
+Tabla relacionada: EMP_PRESTAMO_DETALLE
+Funcionalidad:
+- CRUD de prestamos a empleados.
+- Maneja monto, saldo pendiente, cuota mensual, estado y empleado.
+- Usa transacciones para crear, actualizar y eliminar.
+- Se integra con nomina para registrar pagos de cuotas.
+
+Endpoints:
+- GET /prestamo
+- GET /prestamo/:id
+- POST /prestamo
+- PUT /prestamo/:id
+- DELETE /prestamo/:id
+
+6.29 Prestamo detalle
+Base route: /prestamoDetalle
+Tabla principal: EMP_PRESTAMO_DETALLE
+Funcionalidad:
+- CRUD de cuotas/pagos de prestamos.
+- Puede guardar numero de cuota, monto, fecha, prestamo, nomina y detalle de nomina
+  segun migraciones disponibles.
+
+Endpoints:
+- GET /prestamoDetalle
+- GET /prestamoDetalle/:id
+- POST /prestamoDetalle
+- PUT /prestamoDetalle/:id
+- DELETE /prestamoDetalle/:id
+
+6.30 Liquidaciones
+Base route: /liquidaciones
+Tabla principal: EMP_LIQUIDACIONES
+Tablas relacionadas: EMP_EMPLEADO, EMP_EMPLEADO_CONTRATO, EMP_CONTROL_LABORAL
+Funcionalidad:
+- CRUD de liquidaciones.
+- Calculo previo de liquidacion con POST /calcular.
+- Calcula datos por empleado, salario, fecha de ingreso/salida y dias trabajados.
+- Considera ausencias/control laboral.
+- Crea liquidacion en transaccion.
+- Marca empleado como liquidado/inactivo y cierra contrato actual.
+- Detecta columnas disponibles para soportar variaciones de esquema.
+
+Endpoints:
+- GET /liquidaciones
+- GET /liquidaciones/:id
+- POST /liquidaciones
+- POST /liquidaciones/calcular
+- PUT /liquidaciones/:id
+- DELETE /liquidaciones/:id
+
+7. Reportes
+-----------
+Base routes:
+- /api/reportes
+- /reportes
+
+Biblioteca: pdfkit
+
+7.1 Reporte de marcajes
+Funcionalidad:
+- Consultar marcajes con filtros por empleado, departamento, fechaInicio y fechaFin.
+- Generar PDF en formato horizontal.
+
+Endpoints:
+- GET /api/reportes/marcajes
+- GET /api/reportes/marcajes/pdf
+
+7.2 Reportes PDF generales
+Funcionalidad:
+- Generar PDF de aguinaldo.
+- Generar PDF de vacaciones.
+- Generar PDF de descuentos.
+- Generar PDF de KPI.
+- Generar PDF de horas extra.
+- Generar PDF de liquidacion.
+- Generar PDF de dashboard ejecutivo.
+- Generar proyeccion ISR en JSON y PDF.
+
+Endpoints:
+- GET /api/reportes/aguinaldo/pdf
+- GET /api/reportes/vacaciones/pdf
+- GET /api/reportes/descuentos/pdf
+- GET /api/reportes/kpi/pdf
+- GET /api/reportes/horas-extra/pdf
+- GET /api/reportes/liquidacion/pdf
+- GET /api/reportes/dashboard-ejecutivo/pdf
+- GET /api/reportes/isr/proyeccion
+- GET /api/reportes/isr/proyeccion/pdf
+
+7.3 Reporte IGSS
+Base route: /api/reportes/igss
+Funcionalidad:
+- Listar periodos disponibles para IGSS.
+- Generar reporte IGSS.
+- Generar PDF de reporte IGSS.
+- Generar PDF de factura/constancia relacionada.
+- Requiere token y permisos de administracion/contabilidad/reportes.
+
+Endpoints:
+- GET /api/reportes/igss/periodos
+- GET /api/reportes/igss/reporte
+- GET /api/reportes/igss/reporte/pdf
+- GET /api/reportes/igss/pdf
+- GET /api/reportes/igss/factura/pdf
+
+7.4 Reporte ISR
+Base route: /api/reportes/isr
+Funcionalidad:
+- Listar anios disponibles.
+- Generar reporte anual ISR.
+- Generar PDF del reporte ISR.
+- Generar constancia PDF.
+- Generar factura/constancia PDF segun alias.
+- Requiere token y permisos autorizados.
+
+Endpoints:
+- GET /api/reportes/isr/anios
+- GET /api/reportes/isr/reporte
+- GET /api/reportes/isr/reporte/pdf
+- GET /api/reportes/isr/constancia/pdf
+- GET /api/reportes/isr/pdf
+- GET /api/reportes/isr/factura/pdf
+
+7.5 Dashboard ejecutivo
+Base route: /api/reportes/dashboard
+Funcionalidad:
+- Construye indicadores ejecutivos de planilla y RRHH.
+- Incluye resumen base, evolucion de planilla, distribucion por departamento,
+  rotacion mensual, obligaciones del periodo, top horas extra, estados,
+  liquidaciones y alertas.
+- Requiere token y rol vigente.
+
+Endpoint:
+- GET /api/reportes/dashboard/ejecutivo
+
+8. Base de datos y tablas principales detectadas
+-----------------------------------------------
+El backend trabaja principalmente con tablas Oracle con prefijo EMP_:
+- EMP_USUARIO
+- EMP_ROLES
+- EMP_PERMISOS
+- EMP_ROL_PERMISOS
+- EMP_BITACORA
+- EMP_USUARIO_BITACORA
+- EMP_EMPLEADO
+- EMP_EMPLEADO_CONTRATO
+- EMP_TIPO_CONTRATO
+- EMP_DEPARTAMENTO
+- EMP_PUESTO
+- EMP_SEDE
+- EMP_HORARIO
+- EMP_CUENTA_BANCARIA
+- EMP_CONTROL_LABORAL
+- EMP_SUSPENSION_IGSS
+- EMP_MARCAJE
+- EMP_PERIODO
+- EMP_INGRESO
+- EMP_DESCUENTO
+- EMP_KPI
+- EMP_KPI_RESULTADO
+- EMP_NOMINA
+- EMP_NOMINA_DETALLE
+- EMP_NOMINA_ASIGNACION
+- EMP_PRESTAMO
+- EMP_PRESTAMO_DETALLE
+- EMP_LIQUIDACIONES
+
+Tambien existe un modulo de clientes que usa CLIENTES / HR.CLIENTES.
+
+9. Scripts SQL y migraciones
+----------------------------
+Carpeta: sql
+- admin_modulo.sql:
+  Configuracion del modulo administrativo, permisos o roles relacionados.
+
+- create_missing_sequences.sql:
+  Creacion de secuencias faltantes para IDs.
+
+- fix_liquidaciones_fk_emp.sql:
+  Ajuste de llave foranea de liquidaciones con empleados.
+
+- liquidacion_retencion_migration.sql:
+  Migracion relacionada con retenciones/liquidaciones.
+
+- nomina_asignacion.sql:
+  Estructura o ajustes para asignaciones de nomina.
+
+- nomina_conceptos_base.sql:
+  Conceptos base de nomina, ingresos y descuentos.
+
+- nomina_sequences.sql:
+  Secuencias necesarias para nomina.
+
+- prepare_oracle_test_reporting_data.sql:
+  Limpia y prepara datos de prueba para reportes.
+  Inserta catalogos, empleados, periodos, marcajes, KPI, asignaciones,
+  nominas, detalles y pagos de prestamos.
+
+- prestamo_empleado_migration.sql:
+  Agrega/ajusta relacion entre empleado y prestamo.
+
+- prestamo_nomina_pago_migration.sql:
+  Agrega columnas PRE_ID, NOM_ID y DET_ID a EMP_PRESTAMO_DETALLE si faltan.
+
+Carpeta: scripts
+- runNominaSequences.js:
+  Script auxiliar para ejecutar configuraciones/secuencias de nomina.
+
+10. Flujo funcional principal
+-----------------------------
+1. Se crean roles, permisos y usuarios.
+2. Un usuario inicia sesion en /auth/login y recibe JWT.
+3. Administracion gestiona empleados, puestos, departamentos, sedes, horarios y
+   contratos.
+4. Se configuran periodos, conceptos de ingresos, descuentos y asignaciones.
+5. Los empleados registran marcajes o se ingresan marcajes manuales.
+6. Se cargan KPI/resultados, prestamos y descuentos adicionales.
+7. Se genera nomina por periodo con /nominas/generar.
+8. La nomina calcula ingresos, descuentos, horas extra, KPI, IGSS, ISR y prestamos.
+9. Se consultan reportes operativos, fiscales y ejecutivos.
+10. Si un empleado termina relacion laboral, se calcula y registra liquidacion.
+
+11. Observaciones importantes
+-----------------------------
+- No todas las rutas estan protegidas por token en app.js; la proteccion se aplica
+  dentro de algunos routers. Modulos administrativos y reportes sensibles si tienen
+  middlewares explicitos.
+- El backend usa autoCommit en executeQuery, y transacciones explicitas en procesos
+  sensibles como nomina, empleados, contratos, roles, permisos, prestamos y
+  liquidaciones.
+- Varias rutas tienen aliases con mayusculas/minusculas para compatibilidad con el
+  frontend.
+- Los PDFs se descargan mediante Content-Disposition.
+- La aplicacion depende de variables de entorno para Oracle, JWT, expiracion del
+  token, puerto y URL del frontend.
+- Algunos controladores incluyen funciones CRUD que no necesariamente estan
+  expuestas por el router actual.
+
+12. Variables de entorno esperadas
+----------------------------------
+- PORT
+- FRONTEND_URL
+- ORACLE_USER
+- ORACLE_PASSWORD
+- ORACLE_CONNECT_STRING
+- JWT_SECRET
+- JWT_EXPIRES_IN
+
+13. Mapa rapido de endpoints
+----------------------------
+GET    /
+POST   /auth/login
+POST   /auth/readtoken
+
+GET    /clientes
+GET    /clientes/:id
+POST   /clientes
+PUT    /clientes/:id
+DELETE /clientes/:id
+
+GET    /usuarios
+GET    /usuarios/:id
+POST   /usuarios
+PUT    /usuarios/:id
+DELETE /usuarios/:id
+
+GET    /roles
+GET    /roles/:id
+POST   /roles
+PUT    /roles/:id
+DELETE /roles/:id
+
+GET    /permisos
+GET    /permisos/:id
+POST   /permisos
+PUT    /permisos/:id
+DELETE /permisos/:id
+
+GET    /rolPermisos
+GET    /rolPermisos/:id
+POST   /rolPermisos
+PUT    /rolPermisos/:id
+DELETE /rolPermisos/:id
+
+GET    /admin/resumen
+GET    /admin/actividad
+GET    /admin/catalogo
+
+GET    /bitacora
+GET    /bitacora/:id
+GET    /usuarioBitacora
+GET    /usuarioBitacora/:id
+
+GET    /empleados
+GET    /empleados/:id
+POST   /empleados
+PUT    /empleados/:id
+DELETE /empleados/:id
+
+GET    /tipoContrato
+GET    /tipoContrato/:id
+POST   /tipoContrato
+PUT    /tipoContrato/:id
+DELETE /tipoContrato/:id
+
+GET    /empleadoContrato
+GET    /empleadoContrato/:id
+POST   /empleadoContrato
+PUT    /empleadoContrato/:id
+DELETE /empleadoContrato/:id
+
+GET    /puestos
+GET    /puestos/detalle
+GET    /puestos/:id
+POST   /puestos
+PUT    /puestos/:id
+DELETE /puestos/:id
+
+GET    /departamentos
+GET    /departamentos/:id
+POST   /departamentos
+PUT    /departamentos/:id
+DELETE /departamentos/:id
+
+GET    /sedes
+GET    /sedes/:id
+POST   /sedes
+PUT    /sedes/:id
+DELETE /sedes/:id
+
+GET    /horarios
+GET    /horarios/:id
+POST   /horarios
+PUT    /horarios/:id
+DELETE /horarios/:id
+
+GET    /cuentas
+GET    /cuentas/:id
+POST   /cuentas
+PUT    /cuentas/:id
+DELETE /cuentas/:id
+
+GET    /control
+GET    /control/:id
+POST   /control
+PUT    /control/:id
+DELETE /control/:id
+
+GET    /suspensionIgss
+GET    /suspensionIgss/:id
+POST   /suspensionIgss
+PUT    /suspensionIgss/:id
+DELETE /suspensionIgss/:id
+
+GET    /marcaje
+GET    /marcaje/historial
+GET    /marcaje/:id
+POST   /marcaje
+POST   /marcaje/registrar
+PUT    /marcaje/:id
+DELETE /marcaje/:id
+
+GET    /periodo
+GET    /periodo/:id
+POST   /periodo
+PUT    /periodo/:id
+DELETE /periodo/:id
+
+GET    /ingresos
+GET    /ingresos/:id
+POST   /ingresos
+PUT    /ingresos/:id
+DELETE /ingresos/:id
+
+GET    /descuentos
+GET    /descuentos/:id
+POST   /descuentos
+PUT    /descuentos/:id
+DELETE /descuentos/:id
+
+GET    /kpi
+GET    /kpi/:id
+POST   /kpi
+PUT    /kpi/:id
+DELETE /kpi/:id
+
+GET    /kpiResultado
+GET    /kpiResultado/:id
+POST   /kpiResultado
+PUT    /kpiResultado/:id
+DELETE /kpiResultado/:id
+
+GET    /nominas
+GET    /nominas/:id
+POST   /nominas
+POST   /nominas/generar
+PUT    /nominas/:id
+DELETE /nominas/:id
+
+GET    /nominaDetalle
+GET    /nominaDetalle/:id
+POST   /nominaDetalle
+PUT    /nominaDetalle/:id
+DELETE /nominaDetalle/:id
+
+GET    /nomina-asignaciones
+GET    /nomina-asignaciones/:id
+POST   /nomina-asignaciones
+PUT    /nomina-asignaciones/:id
+DELETE /nomina-asignaciones/:id
+
+GET    /prestamo
+GET    /prestamo/:id
+POST   /prestamo
+PUT    /prestamo/:id
+DELETE /prestamo/:id
+
+GET    /prestamoDetalle
+GET    /prestamoDetalle/:id
+POST   /prestamoDetalle
+PUT    /prestamoDetalle/:id
+DELETE /prestamoDetalle/:id
+
+GET    /liquidaciones
+GET    /liquidaciones/:id
+POST   /liquidaciones
+POST   /liquidaciones/calcular
+PUT    /liquidaciones/:id
+DELETE /liquidaciones/:id
+
+GET    /api/reportes/marcajes
+GET    /api/reportes/marcajes/pdf
+GET    /api/reportes/aguinaldo/pdf
+GET    /api/reportes/vacaciones/pdf
+GET    /api/reportes/descuentos/pdf
+GET    /api/reportes/kpi/pdf
+GET    /api/reportes/horas-extra/pdf
+GET    /api/reportes/liquidacion/pdf
+GET    /api/reportes/dashboard-ejecutivo/pdf
+GET    /api/reportes/isr/proyeccion
+GET    /api/reportes/isr/proyeccion/pdf
+GET    /api/reportes/isr/anios
+GET    /api/reportes/isr/reporte
+GET    /api/reportes/isr/reporte/pdf
+GET    /api/reportes/isr/constancia/pdf
+GET    /api/reportes/isr/pdf
+GET    /api/reportes/isr/factura/pdf
+GET    /api/reportes/igss/periodos
+GET    /api/reportes/igss/reporte
+GET    /api/reportes/igss/reporte/pdf
+GET    /api/reportes/igss/pdf
+GET    /api/reportes/igss/factura/pdf
+GET    /api/reportes/dashboard/ejecutivo
+
