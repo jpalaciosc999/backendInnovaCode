@@ -19,47 +19,185 @@ function puedeOperarEmpleado(req, empId) {
   return Number(req.usuario?.emp_id) === Number(empId);
 }
 
-function parseHoraMinutos(value) {
-  const [hours = "0", minutes = "0"] = String(value || "").split(":");
-  return (Number(hours) || 0) * 60 + (Number(minutes) || 0);
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function minutosActuales() {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
+function roundHours(value) {
+  if (value === null || value === undefined) return null;
+  return Math.round(Number(value) * 100) / 100;
 }
 
-function getDiaHorarioColumn(date = new Date()) {
-  return [
-    "HOR_DOMINGO",
-    "HOR_LUNES",
-    "HOR_MARTES",
-    "HOR_MIERCOLES",
-    "HOR_JUEVES",
-    "HOR_VIERNES",
-    "HOR_SABADO"
-  ][date.getDay()];
-}
-
-async function getHorarioEmpleado(empId) {
+async function validarEmpleadoMarcable(empId) {
   const result = await executeQuery(
     `
       SELECT
         e.EMP_ID,
-        e.HOR_ID,
-        h.HOR_DESCRIPCION,
-        h.HOR_HORA_INICIO,
-        h.HOR_HORA_FIN,
-        h.HOR_LUNES,
-        h.HOR_MARTES,
-        h.HOR_MIERCOLES,
-        h.HOR_JUEVES,
-        h.HOR_VIERNES,
-        h.HOR_SABADO,
-        h.HOR_DOMINGO
+        e.EMP_ESTADO,
+        liq.LIQ_FECHA_SALIDA
       FROM EMP_EMPLEADO e
-      LEFT JOIN EMP_HORARIO h ON h.HOR_ID = e.HOR_ID
+      LEFT JOIN (
+        SELECT EMP_ID, MAX(LIQ_FECHA_SALIDA) AS LIQ_FECHA_SALIDA
+        FROM EMP_LIQUIDACIONES
+        GROUP BY EMP_ID
+      ) liq ON liq.EMP_ID = e.EMP_ID
       WHERE e.EMP_ID = :emp_id
+    `,
+    { emp_id: Number(empId) }
+  );
+
+  const empleado = result.rows[0];
+  if (!empleado) {
+    return "Empleado no encontrado";
+  }
+
+  if (String(empleado.EMP_ESTADO || "A").toUpperCase() !== "A") {
+    return "El empleado no esta activo. No puede registrar marcajes.";
+  }
+
+  if (empleado.LIQ_FECHA_SALIDA && new Date(empleado.LIQ_FECHA_SALIDA) <= new Date()) {
+    return "El empleado esta liquidado. No puede registrar marcajes.";
+  }
+
+  return null;
+}
+
+function buildMarcajesDiariosSql({ includeEmpleadoId = true, limitRows = false } = {}) {
+  const empleadoFilter = includeEmpleadoId ? "WHERE d.EMP_ID = :emp_id" : "";
+  const pagination = limitRows ? "OFFSET :offset ROWS FETCH NEXT 15 ROWS ONLY" : "";
+
+  return `
+    WITH EVENTOS AS (
+      SELECT
+        MAR_ID,
+        EMP_ID,
+        TRUNC(MAR_FECHA) AS MAR_DIA,
+        MAR_ENTRADA AS MAR_EVENTO,
+        MAR_AUTORIZACION
+      FROM EMP_MARCAJE
+      WHERE MAR_ENTRADA IS NOT NULL
+      UNION ALL
+      SELECT
+        MAR_ID,
+        EMP_ID,
+        TRUNC(MAR_FECHA) AS MAR_DIA,
+        MAR_SALIDA AS MAR_EVENTO,
+        MAR_AUTORIZACION
+      FROM EMP_MARCAJE
+      WHERE MAR_SALIDA IS NOT NULL
+    ),
+    DIARIOS AS (
+      SELECT
+        EMP_ID,
+        MAR_DIA,
+        MIN(MAR_ID) AS MAR_ID,
+        MIN(MAR_EVENTO) AS MAR_ENTRADA,
+        CASE WHEN COUNT(*) >= 2 THEN MAX(MAR_EVENTO) END AS MAR_SALIDA,
+        COUNT(*) AS MAR_TOTAL_EVENTOS,
+        MAX(NVL(MAR_AUTORIZACION, 0)) AS MAR_AUTORIZACION,
+        LISTAGG(TO_CHAR(MAR_EVENTO, 'YYYY-MM-DD HH24:MI:SS'), ',')
+          WITHIN GROUP (ORDER BY MAR_EVENTO, MAR_ID) AS MAR_EVENTOS
+      FROM EVENTOS
+      GROUP BY EMP_ID, MAR_DIA
+    )
+    SELECT *
+    FROM (
+      SELECT
+        d.MAR_ID,
+        d.MAR_DIA AS MAR_FECHA,
+        d.MAR_ENTRADA,
+        d.MAR_SALIDA,
+        d.MAR_AUTORIZACION,
+        d.EMP_ID,
+        e.EMP_NOMBRE,
+        e.EMP_APELLIDO,
+        d.MAR_TOTAL_EVENTOS,
+        d.MAR_EVENTOS,
+        CASE
+          WHEN d.MAR_TOTAL_EVENTOS = 1 THEN 'INCONSISTENTE'
+          ELSE 'COMPLETO'
+        END AS MAR_ESTADO_DIA,
+        CASE
+          WHEN d.MAR_TOTAL_EVENTOS >= 2 THEN ROUND((d.MAR_SALIDA - d.MAR_ENTRADA) * 24, 2)
+        END AS MAR_HORAS_TRABAJADAS,
+        CASE
+          WHEN h.HOR_ID IS NOT NULL THEN
+            ROUND(
+              MOD(
+                (
+                  TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 1, 2)) * 60 +
+                  TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 4, 2))
+                ) -
+                (
+                  TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 1, 2)) * 60 +
+                  TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 4, 2))
+                ) + 1440,
+                1440
+              ) / 60,
+              2
+            )
+        END AS MAR_HORAS_PROGRAMADAS,
+        CASE
+          WHEN d.MAR_TOTAL_EVENTOS >= 2 AND h.HOR_ID IS NOT NULL THEN
+            GREATEST(
+              0,
+              ROUND((d.MAR_SALIDA - d.MAR_ENTRADA) * 24, 2) -
+              ROUND(
+                MOD(
+                  (
+                    TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 1, 2)) * 60 +
+                    TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 4, 2))
+                  ) -
+                  (
+                    TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 1, 2)) * 60 +
+                    TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 4, 2))
+                  ) + 1440,
+                  1440
+                ) / 60,
+                2
+              )
+            )
+          ELSE 0
+        END AS MAR_HORAS_EXTRA,
+        CASE
+          WHEN d.MAR_TOTAL_EVENTOS >= 2 AND h.HOR_ID IS NOT NULL THEN
+            GREATEST(
+              0,
+              ROUND(
+                MOD(
+                  (
+                    TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 1, 2)) * 60 +
+                    TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 4, 2))
+                  ) -
+                  (
+                    TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 1, 2)) * 60 +
+                    TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 4, 2))
+                  ) + 1440,
+                  1440
+                ) / 60,
+                2
+              ) -
+              ROUND((d.MAR_SALIDA - d.MAR_ENTRADA) * 24, 2)
+            )
+          ELSE 0
+        END AS MAR_HORAS_FALTANTES
+      FROM DIARIOS d
+      JOIN EMP_EMPLEADO e ON e.EMP_ID = d.EMP_ID
+      LEFT JOIN EMP_HORARIO h ON h.HOR_ID = e.HOR_ID
+      ${empleadoFilter}
+      ORDER BY d.MAR_DIA DESC, d.MAR_ENTRADA DESC
+    )
+    ${pagination}
+  `;
+}
+
+async function getResumenDia(empId, fechaSql = "TRUNC(SYSDATE)") {
+  const result = await executeQuery(
+    `
+      SELECT *
+      FROM (${buildMarcajesDiariosSql({ includeEmpleadoId: true })})
+      WHERE TRUNC(MAR_FECHA) = ${fechaSql}
     `,
     { emp_id: Number(empId) }
   );
@@ -67,84 +205,10 @@ async function getHorarioEmpleado(empId) {
   return result.rows[0] || null;
 }
 
-function validarDiaLaboral(horario) {
-  if (!horario?.HOR_ID) {
-    return "No tienes un horario asignado. Contacta a RRHH antes de marcar.";
-  }
-
-  const dia = getDiaHorarioColumn();
-  if (Number(horario[dia] || 0) !== 1) {
-    return "Hoy no tienes jornada asignada en tu horario.";
-  }
-
-  return null;
-}
-
-function validarEntradaEmpleado(horario) {
-  const errorDia = validarDiaLaboral(horario);
-  if (errorDia) return errorDia;
-
-  const inicio = parseHoraMinutos(horario.HOR_HORA_INICIO);
-  const ahora = minutosActuales();
-  const inicioVentana = inicio - 60;
-  const finVentana = inicio + 120;
-
-  if (ahora < inicioVentana) {
-    return "Aun es muy temprano para registrar entrada. Puedes marcar hasta 60 minutos antes de tu horario.";
-  }
-
-  if (ahora > finVentana) {
-    return "La ventana para registrar entrada ya paso. Contacta a tu supervisor.";
-  }
-
-  return null;
-}
-
-function validarSalidaEmpleado(horario, entrada) {
-  const errorDia = validarDiaLaboral(horario);
-  if (errorDia) return errorDia;
-
-  const ahoraDate = new Date();
-  const entradaDate = new Date(entrada);
-  const minutosDesdeEntrada = (ahoraDate.getTime() - entradaDate.getTime()) / 60000;
-
-  if (minutosDesdeEntrada < 30) {
-    return "No puedes registrar salida tan pronto. Deben pasar al menos 30 minutos desde tu entrada.";
-  }
-
-  const fin = parseHoraMinutos(horario.HOR_HORA_FIN);
-  const ahora = minutosActuales();
-  const inicioVentanaSalida = fin - 30;
-  const finVentanaSalida = fin + 120;
-
-  if (ahora < inicioVentanaSalida) {
-    return "Aun es muy temprano para registrar salida. Puedes marcar desde 30 minutos antes de tu hora de salida.";
-  }
-
-  if (ahora > finVentanaSalida) {
-    return "La ventana para registrar salida ya paso. Contacta a tu supervisor.";
-  }
-
-  return null;
-}
-
 // LISTAR MARCAJES
 export async function getMarcajes(req, res) {
   try {
-    const sql = `
-      SELECT 
-        M.MAR_ID,
-        M.MAR_FECHA,
-        M.MAR_ENTRADA,
-        M.MAR_SALIDA,
-        M.MAR_AUTORIZACION,
-        M.EMP_ID,
-        E.EMP_NOMBRE,
-        E.EMP_APELLIDO
-      FROM EMP_MARCAJE M
-      JOIN EMP_EMPLEADO E ON E.EMP_ID = M.EMP_ID
-      ORDER BY M.MAR_FECHA DESC, M.MAR_ID DESC
-    `;
+    const sql = buildMarcajesDiariosSql({ includeEmpleadoId: false });
 
     const result = await executeQuery(sql);
     res.json(result.rows);
@@ -206,7 +270,10 @@ export async function createMarcaje(req, res) {
       return res.status(403).json({ message: "Solo puedes registrar marcajes para tu propio empleado" });
     }
 
-    const horarioEmpleado = isEmpleado(req) ? await getHorarioEmpleado(emp_id) : null;
+    const errorEmpleado = await validarEmpleadoMarcable(emp_id);
+    if (errorEmpleado) {
+      return res.status(errorEmpleado === "Empleado no encontrado" ? 404 : 400).json({ message: errorEmpleado });
+    }
 
     const sql = `
       INSERT INTO EMP_MARCAJE (
@@ -245,7 +312,7 @@ export async function createMarcaje(req, res) {
   }
 }
 
-// REGISTRAR ENTRADA O SALIDA AUTOMÁTICA
+// REGISTRAR EVENTO DE MARCAJE AUTOMATICO
 export async function registrarMarcaje(req, res) {
   try {
     const { emp_id } = req.body;
@@ -258,24 +325,16 @@ export async function registrarMarcaje(req, res) {
       return res.status(403).json({ message: "Solo puedes registrar marcajes para tu propio empleado" });
     }
 
-    const sqlCheck = `
-      SELECT MAR_ID, MAR_ENTRADA, MAR_SALIDA
-      FROM EMP_MARCAJE
-      WHERE EMP_ID = :emp_id
-      AND TRUNC(MAR_FECHA) = TRUNC(SYSDATE)
-    `;
+    const errorEmpleado = await validarEmpleadoMarcable(emp_id);
+    if (errorEmpleado) {
+      return res.status(errorEmpleado === "Empleado no encontrado" ? 404 : 400).json({ message: errorEmpleado });
+    }
 
-    const checkResult = await executeQuery(sqlCheck, {
-      emp_id: Number(emp_id)
-    });
+    const idResult = await executeQuery(`SELECT EMP_MARCAJE_SEQ.NEXTVAL AS MAR_ID FROM DUAL`);
+    const marId = Number(idResult.rows[0].MAR_ID);
 
-    if (checkResult.rows.length === 0) {
-      const errorEntrada = horarioEmpleado ? validarEntradaEmpleado(horarioEmpleado) : null;
-      if (errorEntrada) {
-        return res.status(400).json({ message: errorEntrada });
-      }
-
-      const sqlInsert = `
+    await executeQuery(
+      `
         INSERT INTO EMP_MARCAJE (
           MAR_ID,
           MAR_FECHA,
@@ -284,48 +343,30 @@ export async function registrarMarcaje(req, res) {
           MAR_AUTORIZACION
         )
         VALUES (
-          EMP_MARCAJE_SEQ.NEXTVAL,
+          :mar_id,
           TRUNC(SYSDATE),
           SYSDATE,
           :emp_id,
           0
         )
-      `;
-
-      await executeQuery(sqlInsert, {
+      `,
+      {
+        mar_id: marId,
         emp_id: Number(emp_id)
-      });
-
-      return res.status(201).json({
-        message: "Entrada registrada con éxito"
-      });
-    }
-
-    const registro = checkResult.rows[0];
-
-    if (!registro.MAR_SALIDA) {
-      const errorSalida = horarioEmpleado ? validarSalidaEmpleado(horarioEmpleado, registro.MAR_ENTRADA) : null;
-      if (errorSalida) {
-        return res.status(400).json({ message: errorSalida });
       }
+    );
 
-      const sqlUpdate = `
-        UPDATE EMP_MARCAJE
-        SET MAR_SALIDA = SYSDATE
-        WHERE MAR_ID = :id
-      `;
+    const resumen = await getResumenDia(emp_id);
+    const totalEventos = toNumber(resumen?.MAR_TOTAL_EVENTOS);
+    const horasExtra = roundHours(resumen?.MAR_HORAS_EXTRA) || 0;
 
-      await executeQuery(sqlUpdate, {
-        id: registro.MAR_ID
-      });
-
-      return res.json({
-        message: "Salida registrada con éxito"
-      });
-    }
-
-    return res.status(400).json({
-      message: "Ya has completado tu jornada de hoy"
+    return res.status(201).json({
+      message: "Marcaje registrado correctamente",
+      MAR_ID: marId,
+      tipo_calculado: totalEventos === 1 ? "ENTRADA" : "EVENTO",
+      estado_dia: resumen?.MAR_ESTADO_DIA || "INCONSISTENTE",
+      autorizacion: horasExtra > 0 ? "PENDIENTE" : "NO_APLICA",
+      resumen_dia: resumen
     });
   } catch (error) {
     console.error("Error en registrarMarcaje:", error);
@@ -348,25 +389,7 @@ export async function getHistorial(req, res) {
     if (!puedeOperarEmpleado(req, emp_id)) {
       return res.status(403).json({ message: "Solo puedes consultar tu propio historial de marcajes" });
     }
-
-    const sql = `
-      SELECT *
-      FROM (
-        SELECT 
-          M.MAR_ID,
-          M.MAR_FECHA,
-          M.MAR_ENTRADA,
-          M.MAR_SALIDA,
-          M.MAR_AUTORIZACION,
-          E.EMP_NOMBRE,
-          E.EMP_APELLIDO
-        FROM EMP_MARCAJE M
-        JOIN EMP_EMPLEADO E ON E.EMP_ID = M.EMP_ID
-        WHERE M.EMP_ID = :emp_id
-        ORDER BY M.MAR_FECHA DESC
-      )
-      OFFSET :offset ROWS FETCH NEXT 15 ROWS ONLY
-    `;
+    const sql = buildMarcajesDiariosSql({ includeEmpleadoId: true, limitRows: true });
 
     const result = await executeQuery(sql, {
       emp_id: Number(emp_id),

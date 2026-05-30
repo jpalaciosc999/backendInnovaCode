@@ -465,19 +465,50 @@ async function getHorasExtraPorEmpleado(execute, periodo) {
   try {
     const result = await execute(
       `
+        WITH eventos AS (
+          SELECT
+            MAR_ID,
+            EMP_ID,
+            TRUNC(MAR_FECHA) AS MAR_DIA,
+            MAR_ENTRADA AS MAR_EVENTO,
+            MAR_AUTORIZACION
+          FROM EMP_MARCAJE
+          WHERE MAR_ENTRADA IS NOT NULL
+          UNION ALL
+          SELECT
+            MAR_ID,
+            EMP_ID,
+            TRUNC(MAR_FECHA) AS MAR_DIA,
+            MAR_SALIDA AS MAR_EVENTO,
+            MAR_AUTORIZACION
+          FROM EMP_MARCAJE
+          WHERE MAR_SALIDA IS NOT NULL
+        ),
+        marcajes_diarios AS (
+          SELECT
+            EMP_ID,
+            MAR_DIA,
+            MIN(MAR_EVENTO) AS MAR_ENTRADA,
+            MAX(MAR_EVENTO) AS MAR_SALIDA,
+            COUNT(*) AS TOTAL_EVENTOS,
+            MAX(NVL(MAR_AUTORIZACION, 0)) AS MAR_AUTORIZACION
+          FROM eventos
+          GROUP BY EMP_ID, MAR_DIA
+        )
         SELECT
           m.EMP_ID,
           m.MAR_ENTRADA,
           m.MAR_SALIDA,
           h.HOR_HORA_INICIO,
           h.HOR_HORA_FIN
-        FROM EMP_MARCAJE m
+        FROM marcajes_diarios m
         INNER JOIN EMP_EMPLEADO e ON e.EMP_ID = m.EMP_ID
         LEFT JOIN EMP_HORARIO h ON h.HOR_ID = e.HOR_ID
-        WHERE TRUNC(m.MAR_FECHA) BETWEEN TO_DATE(:fecha_inicio, 'YYYY-MM-DD')
-                                     AND TO_DATE(:fecha_fin, 'YYYY-MM-DD')
+        WHERE m.MAR_DIA BETWEEN TO_DATE(:fecha_inicio, 'YYYY-MM-DD')
+                            AND TO_DATE(:fecha_fin, 'YYYY-MM-DD')
           AND m.MAR_ENTRADA IS NOT NULL
           AND m.MAR_SALIDA IS NOT NULL
+          AND m.TOTAL_EVENTOS >= 2
           AND NVL(m.MAR_AUTORIZACION, 0) = 1
       `,
       {
