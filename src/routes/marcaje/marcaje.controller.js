@@ -63,8 +63,9 @@ async function validarEmpleadoMarcable(empId) {
   return null;
 }
 
-function buildMarcajesDiariosSql({ includeEmpleadoId = true, limitRows = false } = {}) {
+function buildMarcajesDiariosSql({ includeEmpleadoId = true, limitRows = false, onlyToday = false } = {}) {
   const empleadoFilter = includeEmpleadoId ? "WHERE d.EMP_ID = :emp_id" : "";
+  const dateFilter = onlyToday ? `${includeEmpleadoId ? "AND" : "WHERE"} TRUNC(d.MAR_DIA) = TRUNC(SYSDATE)` : "";
   const pagination = limitRows ? "OFFSET :offset ROWS FETCH NEXT 15 ROWS ONLY" : "";
 
   return `
@@ -100,6 +101,21 @@ function buildMarcajesDiariosSql({ includeEmpleadoId = true, limitRows = false }
           WITHIN GROUP (ORDER BY MAR_EVENTO, MAR_ID) AS MAR_EVENTOS
       FROM EVENTOS
       GROUP BY EMP_ID, MAR_DIA
+    ),
+    HORARIOS AS (
+      SELECT
+        HOR_ID,
+        CASE
+          WHEN REGEXP_LIKE(TO_CHAR(HOR_HORA_INICIO), '^[0-2][0-9]:[0-5][0-9]') THEN
+            TO_NUMBER(SUBSTR(TO_CHAR(HOR_HORA_INICIO), 1, 2)) * 60 +
+            TO_NUMBER(SUBSTR(TO_CHAR(HOR_HORA_INICIO), 4, 2))
+        END AS HOR_INICIO_MINUTOS,
+        CASE
+          WHEN REGEXP_LIKE(TO_CHAR(HOR_HORA_FIN), '^[0-2][0-9]:[0-5][0-9]') THEN
+            TO_NUMBER(SUBSTR(TO_CHAR(HOR_HORA_FIN), 1, 2)) * 60 +
+            TO_NUMBER(SUBSTR(TO_CHAR(HOR_HORA_FIN), 4, 2))
+        END AS HOR_FIN_MINUTOS
+      FROM EMP_HORARIO
     )
     SELECT *
     FROM (
@@ -122,87 +138,116 @@ function buildMarcajesDiariosSql({ includeEmpleadoId = true, limitRows = false }
           WHEN d.MAR_TOTAL_EVENTOS >= 2 THEN ROUND((d.MAR_SALIDA - d.MAR_ENTRADA) * 24, 2)
         END AS MAR_HORAS_TRABAJADAS,
         CASE
-          WHEN h.HOR_ID IS NOT NULL THEN
-            ROUND(
-              MOD(
-                (
-                  TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 1, 2)) * 60 +
-                  TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 4, 2))
-                ) -
-                (
-                  TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 1, 2)) * 60 +
-                  TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 4, 2))
-                ) + 1440,
-                1440
-              ) / 60,
-              2
-            )
+          WHEN h.HOR_INICIO_MINUTOS IS NOT NULL AND h.HOR_FIN_MINUTOS IS NOT NULL THEN
+            ROUND(MOD(h.HOR_FIN_MINUTOS - h.HOR_INICIO_MINUTOS + 1440, 1440) / 60, 2)
         END AS MAR_HORAS_PROGRAMADAS,
         CASE
-          WHEN d.MAR_TOTAL_EVENTOS >= 2 AND h.HOR_ID IS NOT NULL THEN
+          WHEN d.MAR_TOTAL_EVENTOS >= 2
+            AND h.HOR_INICIO_MINUTOS IS NOT NULL
+            AND h.HOR_FIN_MINUTOS IS NOT NULL THEN
             GREATEST(
               0,
               ROUND((d.MAR_SALIDA - d.MAR_ENTRADA) * 24, 2) -
-              ROUND(
-                MOD(
-                  (
-                    TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 1, 2)) * 60 +
-                    TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 4, 2))
-                  ) -
-                  (
-                    TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 1, 2)) * 60 +
-                    TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 4, 2))
-                  ) + 1440,
-                  1440
-                ) / 60,
-                2
-              )
+              ROUND(MOD(h.HOR_FIN_MINUTOS - h.HOR_INICIO_MINUTOS + 1440, 1440) / 60, 2)
             )
           ELSE 0
         END AS MAR_HORAS_EXTRA,
         CASE
-          WHEN d.MAR_TOTAL_EVENTOS >= 2 AND h.HOR_ID IS NOT NULL THEN
+          WHEN d.MAR_TOTAL_EVENTOS >= 2
+            AND h.HOR_INICIO_MINUTOS IS NOT NULL
+            AND h.HOR_FIN_MINUTOS IS NOT NULL THEN
             GREATEST(
               0,
-              ROUND(
-                MOD(
-                  (
-                    TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 1, 2)) * 60 +
-                    TO_NUMBER(SUBSTR(h.HOR_HORA_FIN, 4, 2))
-                  ) -
-                  (
-                    TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 1, 2)) * 60 +
-                    TO_NUMBER(SUBSTR(h.HOR_HORA_INICIO, 4, 2))
-                  ) + 1440,
-                  1440
-                ) / 60,
-                2
-              ) -
+              ROUND(MOD(h.HOR_FIN_MINUTOS - h.HOR_INICIO_MINUTOS + 1440, 1440) / 60, 2) -
               ROUND((d.MAR_SALIDA - d.MAR_ENTRADA) * 24, 2)
             )
           ELSE 0
         END AS MAR_HORAS_FALTANTES
       FROM DIARIOS d
       JOIN EMP_EMPLEADO e ON e.EMP_ID = d.EMP_ID
-      LEFT JOIN EMP_HORARIO h ON h.HOR_ID = e.HOR_ID
+      LEFT JOIN HORARIOS h ON h.HOR_ID = e.HOR_ID
       ${empleadoFilter}
+      ${dateFilter}
       ORDER BY d.MAR_DIA DESC, d.MAR_ENTRADA DESC
     )
     ${pagination}
   `;
 }
 
-async function getResumenDia(empId, fechaSql = "TRUNC(SYSDATE)") {
+async function getResumenDia(empId) {
   const result = await executeQuery(
-    `
-      SELECT *
-      FROM (${buildMarcajesDiariosSql({ includeEmpleadoId: true })})
-      WHERE TRUNC(MAR_FECHA) = ${fechaSql}
-    `,
+    buildMarcajesDiariosSql({ includeEmpleadoId: true, onlyToday: true }),
     { emp_id: Number(empId) }
   );
 
   return result.rows[0] || null;
+}
+
+async function registrarEventoMarcaje(empId) {
+  const idResult = await executeQuery(`SELECT EMP_MARCAJE_SEQ.NEXTVAL AS MAR_ID FROM DUAL`);
+  const marId = Number(idResult.rows[0].MAR_ID);
+
+  try {
+    await executeQuery(
+      `
+        INSERT INTO EMP_MARCAJE (
+          MAR_ID,
+          MAR_FECHA,
+          MAR_ENTRADA,
+          EMP_ID,
+          MAR_AUTORIZACION
+        )
+        VALUES (
+          :mar_id,
+          TRUNC(SYSDATE),
+          SYSDATE,
+          :emp_id,
+          0
+        )
+      `,
+      {
+        mar_id: marId,
+        emp_id: Number(empId)
+      }
+    );
+
+    return { marId, modo: "EVENTO_NUEVO" };
+  } catch (error) {
+    const existing = await executeQuery(
+      `
+        SELECT MAR_ID
+        FROM EMP_MARCAJE
+        WHERE EMP_ID = :emp_id
+          AND TRUNC(MAR_FECHA) = TRUNC(SYSDATE)
+        ORDER BY MAR_FECHA DESC, MAR_ID DESC
+        FETCH FIRST 1 ROWS ONLY
+      `,
+      { emp_id: Number(empId) }
+    );
+
+    if (existing.rows.length === 0) {
+      throw error;
+    }
+
+    const updateResult = await executeQuery(
+      `
+        UPDATE EMP_MARCAJE
+        SET MAR_SALIDA = SYSDATE
+        WHERE EMP_ID = :emp_id
+          AND TRUNC(MAR_FECHA) = TRUNC(SYSDATE)
+      `,
+      { emp_id: Number(empId) }
+    );
+
+    if (Number(updateResult.rowsAffected || 0) === 0) {
+      throw error;
+    }
+
+    return {
+      marId: Number(existing.rows[0]?.MAR_ID || marId),
+      modo: "SALIDA_ACTUALIZADA"
+    };
+  }
 }
 
 // LISTAR MARCAJES
@@ -330,39 +375,22 @@ export async function registrarMarcaje(req, res) {
       return res.status(errorEmpleado === "Empleado no encontrado" ? 404 : 400).json({ message: errorEmpleado });
     }
 
-    const idResult = await executeQuery(`SELECT EMP_MARCAJE_SEQ.NEXTVAL AS MAR_ID FROM DUAL`);
-    const marId = Number(idResult.rows[0].MAR_ID);
+    const registro = await registrarEventoMarcaje(emp_id);
 
-    await executeQuery(
-      `
-        INSERT INTO EMP_MARCAJE (
-          MAR_ID,
-          MAR_FECHA,
-          MAR_ENTRADA,
-          EMP_ID,
-          MAR_AUTORIZACION
-        )
-        VALUES (
-          :mar_id,
-          TRUNC(SYSDATE),
-          SYSDATE,
-          :emp_id,
-          0
-        )
-      `,
-      {
-        mar_id: marId,
-        emp_id: Number(emp_id)
-      }
-    );
+    let resumen = null;
+    try {
+      resumen = await getResumenDia(emp_id);
+    } catch (resumenError) {
+      console.error("Error calculando resumen diario de marcaje:", resumenError);
+    }
 
-    const resumen = await getResumenDia(emp_id);
     const totalEventos = toNumber(resumen?.MAR_TOTAL_EVENTOS);
     const horasExtra = roundHours(resumen?.MAR_HORAS_EXTRA) || 0;
 
     return res.status(201).json({
       message: "Marcaje registrado correctamente",
-      MAR_ID: marId,
+      MAR_ID: registro.marId,
+      modo_registro: registro.modo,
       tipo_calculado: totalEventos === 1 ? "ENTRADA" : "EVENTO",
       estado_dia: resumen?.MAR_ESTADO_DIA || "INCONSISTENTE",
       autorizacion: horasExtra > 0 ? "PENDIENTE" : "NO_APLICA",
